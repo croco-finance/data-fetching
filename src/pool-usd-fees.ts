@@ -1,5 +1,6 @@
 import { client } from './apollo/client';
 import { gql } from '@apollo/client/core';
+import dayjs from 'dayjs';
 
 const VOLUME_QUERY = gql`
     query volume($id: String, $numDays: Int) {
@@ -7,6 +8,7 @@ const VOLUME_QUERY = gql`
             feeTier
         }
         poolDayDatas(where: {pool: $id}, first: $numDays, orderBy: date, orderDirection: desc) {
+            date
             volumeUSD
         }
     }
@@ -24,7 +26,10 @@ async function getPool(address: string, numDays: number): Promise<number[]> {
     const { pool, poolDayDatas } = result.data;
 
     return poolDayDatas.map((dayData: any) => {
-        return Math.round(dayData.volumeUSD * pool.feeTier / 10000);
+        return {
+            time: dayjs.unix(dayData.date).format('YYYY-MM-DD'),
+            value: Math.round(dayData.volumeUSD * pool.feeTier / 10000),
+        };
     });
 }
 
