@@ -2,8 +2,8 @@ import { gql } from '@apollo/client/core';
 import { client } from './apollo/client';
 
 const POSITIONS_QUERY = gql`
-    query positions($userId: String, $poolId: String) {
-        positions(where: {operator: $userId, pool: $poolId}){
+    query positions($owner: String, $pool: String) {
+        positions(where: {owner: $owner, pool: $pool}){
             pool {
                 tick
                 feeGrowthGlobal0X128
@@ -24,12 +24,12 @@ const POSITIONS_QUERY = gql`
     }
 `;
 
-async function getPositions(userAddress: string, poolAddress: string): Promise<void> {
+async function getPositions(owner: string, pool: string): Promise<void> {
     const result = await client.query({
         query: POSITIONS_QUERY,
         variables: {
-            userId: userAddress,
-            poolId: poolAddress,
+            owner: owner,
+            pool: pool,
         },
     });
 
@@ -38,6 +38,6 @@ async function getPositions(userAddress: string, poolAddress: string): Promise<v
 }
 
 (async function main() {
-    await getPositions('0x0000000000000000000000000000000000000000',
+    await getPositions('0x48c89d77ae34ae475e4523b25ab01e363dce5a78',
         '0xc2e9f25be6257c210d7adf0d4cd6e3e881ba25f8');
 })().catch((error) => console.error(error));
