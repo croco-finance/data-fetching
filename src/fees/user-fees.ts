@@ -1,5 +1,5 @@
 import { gql } from '@apollo/client/core';
-import { client } from './apollo/client';
+import { client } from '../apollo/client';
 
 const POSITIONS_QUERY = gql`
     query positions($owner: String, $pool: String) {
