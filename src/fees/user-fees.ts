@@ -2,6 +2,9 @@ import { gql } from '@apollo/client/core';
 import { client } from '../apollo/client';
 import { BigNumber } from 'ethers';
 
+// See https://docs.uniswap.org/reference/core/libraries/FixedPoint128 for details
+const Q128 = BigNumber.from('0x100000000000000000000000000000000');
+
 interface Tick {
     id: BigNumber;
     feeGrowthOutside0X128: BigNumber;
@@ -81,6 +84,18 @@ function getFeeGrowthInside(
     return [feeGrowthInside0X128, feeGrowthInside1X128];
 }
 
+function getFees(
+    feeGrowthInside0X128: BigNumber,
+    feeGrowthInside1X128: BigNumber,
+    feeGrowthInside0LastX128: BigNumber,
+    feeGrowthInside1LastX128: BigNumber,
+    liquidity: BigNumber,
+): [BigNumber, BigNumber] {
+    let feesToken0 = feeGrowthInside0X128.sub(feeGrowthInside0LastX128).mul(liquidity).div(Q128);
+    let feesToken1 = feeGrowthInside1X128.sub(feeGrowthInside1LastX128).mul(liquidity).div(Q128);
+    return [feesToken0, feesToken1];
+}
+
 async function getPositions(owner: string, pool: string): Promise<void> {
     const result = await client.query({
         query: POSITIONS_QUERY,
@@ -99,7 +114,15 @@ async function getPositions(owner: string, pool: string): Promise<void> {
             BigNumber.from(position.pool.feeGrowthGlobal0X128),
             BigNumber.from(position.pool.feeGrowthGlobal1X128),
         );
-        // TODO
+        let [feesToken0, feesToken1] = getFees(
+            feeGrowthInside0X128,
+            feeGrowthInside1X128,
+            BigNumber.from(position.feeGrowthInside0LastX128),
+            BigNumber.from(position.feeGrowthInside1LastX128),
+            BigNumber.from(position.liquidity),
+        );
+        console.log(feesToken0.toString());
+        console.log(feesToken1.toString());
     }
 }
 
