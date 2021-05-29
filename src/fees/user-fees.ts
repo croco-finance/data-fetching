@@ -63,7 +63,7 @@ function getFeeGrowthInside(
     // calculate fee growth above
     let feeGrowthAbove0X128: BigNumber;
     let feeGrowthAbove1X128: BigNumber;
-    if (tickCurrentId < tickUpper.id) {
+    if (tickCurrentId.lt(tickUpper.id)) {
         feeGrowthAbove0X128 = tickUpper.feeGrowthOutside0X128;
         feeGrowthAbove1X128 = tickUpper.feeGrowthOutside1X128;
     } else {
