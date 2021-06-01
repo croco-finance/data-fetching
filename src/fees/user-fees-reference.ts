@@ -1,12 +1,17 @@
-import { abi as NFTPositionManagerABI } from '@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json'
+import { abi as NFTPositionManagerABI } from '@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json';
 import { BigNumber, ethers } from 'ethers';
+import { getLatestBlock } from './utils';
 
-const NFTPositionManagerAddress = '0xC36442b4a4522E871399CD717aBDD847Ab11FE88'
-const MAX_UINT128 = BigNumber.from(2).pow(128).sub(1)
+const NFTPositionManagerAddress = '0xC36442b4a4522E871399CD717aBDD847Ab11FE88';
+const MAX_UINT128 = BigNumber.from(2).pow(128).sub(1);
 
-async function printPositionFees(tokenId: BigNumber, owner: string): Promise<void> {
+async function printPositionFees(tokenId: BigNumber, owner: string, blockTag = -1): Promise<void> {
     const provider = new ethers.providers.JsonRpcProvider('http://localhost:8545/');
-    const positionManager = new ethers.Contract(NFTPositionManagerAddress, NFTPositionManagerABI, provider)
+    const positionManager = new ethers.Contract(
+        NFTPositionManagerAddress,
+        NFTPositionManagerABI,
+        provider,
+    );
 
     positionManager.callStatic
         .collect(
@@ -16,15 +21,22 @@ async function printPositionFees(tokenId: BigNumber, owner: string): Promise<voi
                 amount0Max: MAX_UINT128,
                 amount1Max: MAX_UINT128,
             },
-            { from: owner } // need to simulate the call as the owner
+            // need to simulate the call as the owner and set block to the one to which subgraph was indexed to
+            { from: owner, blockTag: blockTag },
         )
-        .then((results) => {
-            console.log('amount0:', results.amount0.toString(), 'amount1:', results.amount1.toString())
-        })
+        .then(results => {
+            console.log(
+                'amount0:',
+                results.amount0.toString(),
+                'amount1:',
+                results.amount1.toString(),
+            );
+        });
 }
 
 (async function main() {
-    const tokenId = BigNumber.from(101)
-    const owner = '0x48c89d77ae34ae475e4523b25ab01e363dce5a78'
-    await printPositionFees(tokenId, owner);
-})().catch((error) => console.error(error));
+    const latestIndexedBlock = await getLatestBlock();
+    const tokenId = BigNumber.from(101);
+    const owner = '0x48c89d77ae34ae475e4523b25ab01e363dce5a78';
+    await printPositionFees(tokenId, owner, latestIndexedBlock);
+})().catch(error => console.error(error));
