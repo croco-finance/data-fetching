@@ -1,11 +1,12 @@
 import { gql } from '@apollo/client/core';
 import { client } from '../apollo/client';
 import { BigNumber } from 'ethers';
+import { FeesItem } from './daily-user-fees';
 
 // See https://docs.uniswap.org/reference/core/libraries/FixedPoint128 for details
 const Q128 = BigNumber.from('0x100000000000000000000000000000000');
 
-interface Tick {
+export interface Tick {
     id: BigNumber;
     feeGrowthOutside0X128: BigNumber;
     feeGrowthOutside1X128: BigNumber;
@@ -45,7 +46,7 @@ function parseTick(tick: any): Tick {
 }
 
 // reimplementation of Tick.getFeeGrowthInside
-function getFeeGrowthInside(
+export function getFeeGrowthInside(
     tickLower: Tick,
     tickUpper: Tick,
     tickCurrentId: BigNumber,
@@ -84,16 +85,17 @@ function getFeeGrowthInside(
     return [feeGrowthInside0X128, feeGrowthInside1X128];
 }
 
-function getFees(
+export function getFees(
     feeGrowthInside0X128: BigNumber,
     feeGrowthInside1X128: BigNumber,
     feeGrowthInside0LastX128: BigNumber,
     feeGrowthInside1LastX128: BigNumber,
     liquidity: BigNumber,
-): [BigNumber, BigNumber] {
-    let feesToken0 = feeGrowthInside0X128.sub(feeGrowthInside0LastX128).mul(liquidity).div(Q128);
-    let feesToken1 = feeGrowthInside1X128.sub(feeGrowthInside1LastX128).mul(liquidity).div(Q128);
-    return [feesToken0, feesToken1];
+): FeesItem {
+    return {
+        feesToken0: feeGrowthInside0X128.sub(feeGrowthInside0LastX128).mul(liquidity).div(Q128),
+        feesToken1: feeGrowthInside1X128.sub(feeGrowthInside1LastX128).mul(liquidity).div(Q128),
+    };
 }
 
 async function getPositions(owner: string, pool: string): Promise<void> {
@@ -114,21 +116,19 @@ async function getPositions(owner: string, pool: string): Promise<void> {
             BigNumber.from(position.pool.feeGrowthGlobal0X128),
             BigNumber.from(position.pool.feeGrowthGlobal1X128),
         );
-        let [feesToken0, feesToken1] = getFees(
+        let fees = getFees(
             feeGrowthInside0X128,
             feeGrowthInside1X128,
             BigNumber.from(position.feeGrowthInside0LastX128),
             BigNumber.from(position.feeGrowthInside1LastX128),
             BigNumber.from(position.liquidity),
         );
-        console.log(feesToken0.toString());
-        console.log(feesToken1.toString());
     }
 }
 
-(async function main() {
-    await getPositions(
-        '0x48c89d77ae34ae475e4523b25ab01e363dce5a78',
-        '0xc2e9f25be6257c210d7adf0d4cd6e3e881ba25f8',
-    );
-})().catch(error => console.error(error));
+// (async function main() {
+//     await getPositions(
+//         '0x48c89d77ae34ae475e4523b25ab01e363dce5a78',
+//         '0xc2e9f25be6257c210d7adf0d4cd6e3e881ba25f8',
+//     );
+// })().catch(error => console.error(error));

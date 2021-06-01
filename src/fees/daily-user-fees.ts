@@ -1,9 +1,16 @@
 import { gql } from '@apollo/client/core';
 import { client } from '../apollo/client';
+import dayjs from 'dayjs';
+import { BigNumber } from 'ethers';
+import { getFeeGrowthInside, getFees, Tick } from './total-user-fees';
 
 const TICK_IDS_QUERY = gql`
     query tickIds($owner: String, $pool: String) {
         positions(where: { owner: $owner, pool: $pool }) {
+            id
+            pool {
+                id
+            }
             tickLower {
                 tickIdx
             }
@@ -14,31 +21,47 @@ const TICK_IDS_QUERY = gql`
     }
 `;
 
-function buildQuery(owner: string, pool: string, since: number, relevantTickIds: string[]): string {
+export interface FeesItem {
+    feesToken0: BigNumber;
+    feesToken1: BigNumber;
+}
+
+interface PositionFees {
+    // key is timestamp
+    [key: number]: FeesItem;
+}
+
+interface Fees {
+    // key is position id
+    [key: string]: PositionFees;
+}
+
+function buildQuery(
+    owner: string,
+    pool: string,
+    minTimestamp: number,
+    relevantTickIds: string[],
+): string {
     let query = `{
-            positionSnapshots(where: {owner: "${owner}", pool: "${pool}"}) {
+            positionSnapshots(where: {owner: "${owner}", pool: "${pool}"}, orderBy: timestamp, orderDirection: asc) {
                 position {
-                    tickLower {
-                        id
-                    }
-                    tickUpper {
-                        id
-                    }
+                    id
                 }
+                timestamp
                 liquidity
                 feeGrowthInside0LastX128
                 feeGrowthInside1LastX128
             }
-            poolDayDatas(where: {pool: "${pool}", date_gt: ${since}}) {
+            poolDayDatas(where: {pool: "${pool}", date_gt: ${minTimestamp}}, orderBy: date, orderDirection: asc) {
                 date
+                tick
                 feeGrowthGlobal0X128
                 feeGrowthGlobal1X128
             }`;
     for (const tickId of relevantTickIds) {
-        let processedId = tickId.replace('#', '_');
-        processedId = processedId.replace('-', '_');
+        const processedId = tickId.replace('#', '_').replace('-', '_');
         query += `
-        t${processedId}: tickDayDatas(where: {tick: "${tickId}", date_gt: ${since}}) {
+        t${processedId}: tickDayDatas(where: {tick: "${tickId}", date_gt: ${minTimestamp}}, orderBy: date, orderDirection: asc) {
             date
             tick {
                 tickIdx
@@ -51,7 +74,85 @@ function buildQuery(owner: string, pool: string, since: number, relevantTickIds:
     return query;
 }
 
-async function getPositions(owner: string, pool: string): Promise<void> {
+function parseTickDayData(tickDayData: any): Tick {
+    return {
+        id: BigNumber.from(tickDayData.tick.tickIdx),
+        feeGrowthOutside0X128: BigNumber.from(tickDayData.feeGrowthOutside0X128),
+        feeGrowthOutside1X128: BigNumber.from(tickDayData.feeGrowthOutside1X128),
+    };
+}
+
+function computeFees(data: any, positions: any): Fees {
+    const fees: Fees = {};
+    // 1. Iterate over positions
+    for (const position of positions) {
+        const positionFees: PositionFees = {};
+        // 2. get snaps belonging to a given position
+        const relevantSnaps = data.positionSnapshots.filter(
+            (snap: { position: { id: any } }) => snap.position.id == position.id,
+        );
+        // 3. pool day data older than the first snap
+        const relevantPoolDayDatas = data.poolDayDatas.filter(
+            (dayData: { date: number }) => dayData.date >= relevantSnaps[0].timestamp,
+        );
+
+        const lowerTickSnaps =
+            data['t' + position.pool.id + '_' + position.tickLower.tickIdx.replace('-', '_')];
+        const upperTickSnaps =
+            data['t' + position.pool.id + '_' + position.tickUpper.tickIdx.replace('-', '_')];
+
+        // 4. Iterate over pool day data
+        let feeGrowthInside0LastX128;
+        let feeGrowthInside1LastX128;
+        let mostRelevantSnap = relevantSnaps[0];
+        for (const poolDayData of relevantPoolDayDatas) {
+            const lowerTickDayData = lowerTickSnaps.find(
+                (tickSnap: { date: any }) => tickSnap.date == poolDayData.date,
+            );
+            const upperTickDayData = upperTickSnaps.find(
+                (tickSnap: { date: any }) => tickSnap.date == poolDayData.date,
+            );
+
+            // 5. find the closest snap preceding day data
+            for (const snap of relevantSnaps) {
+                if (
+                    snap.timestamp <= poolDayData.date &&
+                    snap.timestamp > mostRelevantSnap.timestamp
+                ) {
+                    mostRelevantSnap = snap;
+                }
+            }
+
+            if (lowerTickDayData !== undefined && upperTickDayData !== undefined) {
+                let [feeGrowthInside0X128, feeGrowthInside1X128] = getFeeGrowthInside(
+                    parseTickDayData(lowerTickDayData),
+                    parseTickDayData(upperTickDayData),
+                    BigNumber.from(poolDayData.tick),
+                    BigNumber.from(poolDayData.feeGrowthGlobal0X128),
+                    BigNumber.from(poolDayData.feeGrowthGlobal1X128),
+                );
+                if (
+                    feeGrowthInside0LastX128 !== undefined &&
+                    feeGrowthInside1LastX128 !== undefined
+                ) {
+                    positionFees[poolDayData.date] = getFees(
+                        feeGrowthInside0X128,
+                        feeGrowthInside1X128,
+                        feeGrowthInside0LastX128,
+                        feeGrowthInside1LastX128,
+                        BigNumber.from(mostRelevantSnap.liquidity),
+                    );
+                }
+                feeGrowthInside0LastX128 = feeGrowthInside0X128;
+                feeGrowthInside1LastX128 = feeGrowthInside1X128;
+            }
+        }
+        fees[position.id] = positionFees;
+    }
+    return fees;
+}
+
+async function getDailyFees(owner: string, pool: string, numDays: number): Promise<void> {
     let result = await client.query({
         query: TICK_IDS_QUERY,
         variables: {
@@ -59,9 +160,10 @@ async function getPositions(owner: string, pool: string): Promise<void> {
             pool: pool,
         },
     });
+    const positions = result.data.positions;
 
     const relevantTicks: string[] = [];
-    for (const position of result.data.positions) {
+    for (const position of positions) {
         let tickLowerId = pool.concat('#').concat(position.tickLower.tickIdx);
         let tickUpperId = pool.concat('#').concat(position.tickUpper.tickIdx);
 
@@ -69,16 +171,20 @@ async function getPositions(owner: string, pool: string): Promise<void> {
         relevantTicks.push(tickUpperId);
     }
 
+    const minTimestamp = dayjs().subtract(numDays, 'day').unix();
     result = await client.query({
-        query: gql(buildQuery(owner, pool, 0, relevantTicks)),
+        query: gql(buildQuery(owner, pool, minTimestamp, relevantTicks)),
     });
 
-    console.log(result);
+    const dailyFees = computeFees(result.data, positions);
+
+    console.log(dailyFees);
 }
 
 (async function main() {
-    await getPositions(
+    await getDailyFees(
         '0x48c89d77ae34ae475e4523b25ab01e363dce5a78',
         '0xc2e9f25be6257c210d7adf0d4cd6e3e881ba25f8',
+        30,
     );
 })().catch(error => console.error(error));
