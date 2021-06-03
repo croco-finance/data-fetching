@@ -36,7 +36,7 @@ async function printPositionFees(tokenId: BigNumber, owner: string, blockTag = -
 
 (async function main() {
     const latestIndexedBlock = await getLatestBlock();
-    const tokenId = BigNumber.from(101);
-    const owner = '0x48c89d77ae34ae475e4523b25ab01e363dce5a78';
+    const tokenId = BigNumber.from(34054);
+    const owner = '0x95Ae3008c4ed8c2804051DD00f7A27dAd5724Ed1';
     await printPositionFees(tokenId, owner, latestIndexedBlock);
 })().catch(error => console.error(error));

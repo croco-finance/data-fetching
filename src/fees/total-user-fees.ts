@@ -123,12 +123,14 @@ async function getPositions(owner: string, pool: string): Promise<void> {
             BigNumber.from(position.feeGrowthInside1LastX128),
             BigNumber.from(position.liquidity),
         );
+        console.log(fees.feesToken0.toString());
+        console.log(fees.feesToken1.toString());
     }
 }
 
 // (async function main() {
 //     await getPositions(
-//         '0x48c89d77ae34ae475e4523b25ab01e363dce5a78',
-//         '0xc2e9f25be6257c210d7adf0d4cd6e3e881ba25f8',
+//         '0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1',
+//         '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f',
 //     );
 // })().catch(error => console.error(error));
