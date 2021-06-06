@@ -13,9 +13,13 @@ const TICK_IDS_QUERY = gql`
             }
             tickLower {
                 tickIdx
+                feeGrowthOutside0X128
+                feeGrowthOutside1X128
             }
             tickUpper {
                 tickIdx
+                feeGrowthOutside0X128
+                feeGrowthOutside1X128
             }
         }
     }
@@ -82,6 +86,14 @@ function parseTickDayData(tickDayData: any): Tick {
     };
 }
 
+function parseTick(tick: any): Tick {
+    return {
+        id: BigNumber.from(tick.tickIdx),
+        feeGrowthOutside0X128: BigNumber.from(tick.feeGrowthOutside0X128),
+        feeGrowthOutside1X128: BigNumber.from(tick.feeGrowthOutside1X128),
+    };
+}
+
 function computeFees(data: any, positions: any): Fees {
     const fees: Fees = {};
     // 1. Iterate over positions
@@ -106,12 +118,27 @@ function computeFees(data: any, positions: any): Fees {
         let feeGrowthInside1LastX128;
         let mostRelevantSnap = relevantSnaps[0];
         for (const poolDayData of relevantPoolDayDatas) {
-            const lowerTickDayData = lowerTickSnaps.find(
+            const lowerTickDayDataRaw = lowerTickSnaps.find(
                 (tickSnap: { date: any }) => tickSnap.date == poolDayData.date,
             );
-            const upperTickDayData = upperTickSnaps.find(
+            const upperTickDayDataRaw = upperTickSnaps.find(
                 (tickSnap: { date: any }) => tickSnap.date == poolDayData.date,
             );
+
+            let lowerTickDayData: Tick;
+            let upperTickDayData: Tick;
+
+            if (lowerTickDayDataRaw === undefined) {
+                lowerTickDayData = parseTick(position.tickLower);
+            } else {
+                lowerTickDayData = parseTickDayData(lowerTickDayDataRaw);
+            }
+
+            if (upperTickDayDataRaw === undefined) {
+                upperTickDayData = parseTick(position.tickUpper);
+            } else {
+                upperTickDayData = parseTickDayData(upperTickDayDataRaw);
+            }
 
             // 5. find the closest snap preceding day data
             for (const snap of relevantSnaps) {
@@ -123,36 +150,32 @@ function computeFees(data: any, positions: any): Fees {
                 }
             }
 
-            if (lowerTickDayData !== undefined && upperTickDayData !== undefined) {
-                let [feeGrowthInside0X128, feeGrowthInside1X128] = getFeeGrowthInside(
-                    parseTickDayData(lowerTickDayData),
-                    parseTickDayData(upperTickDayData),
-                    BigNumber.from(poolDayData.tick),
-                    BigNumber.from(poolDayData.feeGrowthGlobal0X128),
-                    BigNumber.from(poolDayData.feeGrowthGlobal1X128),
+            let [feeGrowthInside0X128, feeGrowthInside1X128] = getFeeGrowthInside(
+                lowerTickDayData,
+                upperTickDayData,
+                BigNumber.from(poolDayData.tick),
+                BigNumber.from(poolDayData.feeGrowthGlobal0X128),
+                BigNumber.from(poolDayData.feeGrowthGlobal1X128),
+            );
+            if (feeGrowthInside0LastX128 !== undefined && feeGrowthInside1LastX128 !== undefined) {
+                positionFees[poolDayData.date] = getFees(
+                    feeGrowthInside0X128,
+                    feeGrowthInside1X128,
+                    feeGrowthInside0LastX128,
+                    feeGrowthInside1LastX128,
+                    BigNumber.from(mostRelevantSnap.liquidity),
                 );
-                if (
-                    feeGrowthInside0LastX128 !== undefined &&
-                    feeGrowthInside1LastX128 !== undefined
-                ) {
-                    positionFees[poolDayData.date] = getFees(
-                        feeGrowthInside0X128,
-                        feeGrowthInside1X128,
-                        feeGrowthInside0LastX128,
-                        feeGrowthInside1LastX128,
-                        BigNumber.from(mostRelevantSnap.liquidity),
-                    );
-                }
-                feeGrowthInside0LastX128 = feeGrowthInside0X128;
-                feeGrowthInside1LastX128 = feeGrowthInside1X128;
             }
+            feeGrowthInside0LastX128 = feeGrowthInside0X128;
+            feeGrowthInside1LastX128 = feeGrowthInside1X128;
         }
         fees[position.id] = positionFees;
     }
     return fees;
 }
 
-async function getDailyFees(owner: string, pool: string, numDays: number): Promise<void> {
+async function getDailyFees(owner: string, pool: string, numDays: number): Promise<Fees> {
+    // 1. get relevant ticks from position
     let result = await client.query({
         query: TICK_IDS_QUERY,
         variables: {
@@ -162,6 +185,7 @@ async function getDailyFees(owner: string, pool: string, numDays: number): Promi
     });
     const positions = result.data.positions;
 
+    // 2. create tick ids from tickIdxes and pool address
     const relevantTicks: string[] = [];
     for (const position of positions) {
         let tickLowerId = pool.concat('#').concat(position.tickLower.tickIdx);
@@ -171,20 +195,21 @@ async function getDailyFees(owner: string, pool: string, numDays: number): Promi
         relevantTicks.push(tickUpperId);
     }
 
+    // 3. fetch positions snapshots and pool and tick day data
     const minTimestamp = dayjs().subtract(numDays, 'day').unix();
     result = await client.query({
         query: gql(buildQuery(owner, pool, minTimestamp, relevantTicks)),
     });
 
-    const dailyFees = computeFees(result.data, positions);
-
-    console.log(dailyFees);
+    // 4. compute fees from all the data
+    return computeFees(result.data, positions);
 }
 
 (async function main() {
-    await getDailyFees(
+    const dailyFees = await getDailyFees(
         '0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1',
         '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f',
         30,
     );
+    console.log(dailyFees);
 })().catch(error => console.error(error));
