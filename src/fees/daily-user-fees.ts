@@ -174,7 +174,11 @@ function computeFees(data: any, positions: any): Fees {
     return fees;
 }
 
-async function getDailyUserPoolFees(owner: string, pool: string, numDays: number): Promise<Fees> {
+export async function getDailyUserPoolFees(
+    owner: string,
+    pool: string,
+    numDays: number,
+): Promise<Fees> {
     // 1. get relevant ticks from position
     let result = await client.query({
         query: TICK_IDS_QUERY,
