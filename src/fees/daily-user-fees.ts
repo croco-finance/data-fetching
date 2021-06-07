@@ -2,7 +2,7 @@ import { gql } from '@apollo/client/core';
 import { client } from '../apollo/client';
 import dayjs from 'dayjs';
 import { BigNumber } from 'ethers';
-import { getFeeGrowthInside, getFees, Tick } from './total-user-fees';
+import { getFeeGrowthInside, getTotalPositionFees, Tick } from './total-user-fees';
 
 const TICK_IDS_QUERY = gql`
     query tickIds($owner: String, $pool: String) {
@@ -25,14 +25,14 @@ const TICK_IDS_QUERY = gql`
     }
 `;
 
-export interface FeesItem {
+export interface TokenFees {
     feesToken0: BigNumber;
     feesToken1: BigNumber;
 }
 
 interface PositionFees {
     // key is timestamp
-    [key: number]: FeesItem;
+    [key: number]: TokenFees;
 }
 
 interface Fees {
@@ -158,7 +158,7 @@ function computeFees(data: any, positions: any): Fees {
                 BigNumber.from(poolDayData.feeGrowthGlobal1X128),
             );
             if (feeGrowthInside0LastX128 !== undefined && feeGrowthInside1LastX128 !== undefined) {
-                positionFees[poolDayData.date] = getFees(
+                positionFees[poolDayData.date] = getTotalPositionFees(
                     feeGrowthInside0X128,
                     feeGrowthInside1X128,
                     feeGrowthInside0LastX128,
@@ -174,7 +174,7 @@ function computeFees(data: any, positions: any): Fees {
     return fees;
 }
 
-async function getDailyFees(owner: string, pool: string, numDays: number): Promise<Fees> {
+async function getDailyUserPoolFees(owner: string, pool: string, numDays: number): Promise<Fees> {
     // 1. get relevant ticks from position
     let result = await client.query({
         query: TICK_IDS_QUERY,
@@ -205,11 +205,11 @@ async function getDailyFees(owner: string, pool: string, numDays: number): Promi
     return computeFees(result.data, positions);
 }
 
-(async function main() {
-    const dailyFees = await getDailyFees(
-        '0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1',
-        '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f',
-        30,
-    );
-    console.log(dailyFees);
-})().catch(error => console.error(error));
+// (async function main() {
+//     const dailyFees = await getDailyUserPoolFees(
+//         '0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1',
+//         '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f',
+//         30,
+//     );
+//     console.log(dailyFees);
+// })().catch(error => console.error(error));

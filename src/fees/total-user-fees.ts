@@ -1,7 +1,7 @@
 import { gql } from '@apollo/client/core';
 import { client } from '../apollo/client';
 import { BigNumber } from 'ethers';
-import { FeesItem } from './daily-user-fees';
+import { TokenFees } from './daily-user-fees';
 
 // See https://docs.uniswap.org/reference/core/libraries/FixedPoint128 for details
 const Q128 = BigNumber.from('0x100000000000000000000000000000000');
@@ -85,30 +85,34 @@ export function getFeeGrowthInside(
     return [feeGrowthInside0X128, feeGrowthInside1X128];
 }
 
-export function getFees(
+export function getTotalPositionFees(
     feeGrowthInside0X128: BigNumber,
     feeGrowthInside1X128: BigNumber,
     feeGrowthInside0LastX128: BigNumber,
     feeGrowthInside1LastX128: BigNumber,
     liquidity: BigNumber,
-): FeesItem {
+): TokenFees {
     return {
         feesToken0: feeGrowthInside0X128.sub(feeGrowthInside0LastX128).mul(liquidity).div(Q128),
         feesToken1: feeGrowthInside1X128.sub(feeGrowthInside1LastX128).mul(liquidity).div(Q128),
     };
 }
 
-async function getPositions(owner: string, pool: string): Promise<void> {
+export async function getTotalUserPoolFees(user: string, pool: string): Promise<TokenFees> {
     const result = await client.query({
         query: POSITIONS_QUERY,
         variables: {
-            owner: owner,
+            owner: user,
             pool: pool,
         },
     });
 
-    const positions = result.data.positions;
-    for (const position of positions) {
+    const totalFees: TokenFees = {
+        feesToken0: BigNumber.from(0),
+        feesToken1: BigNumber.from(0),
+    };
+
+    for (const position of result.data.positions) {
         let [feeGrowthInside0X128, feeGrowthInside1X128] = getFeeGrowthInside(
             parseTick(position.tickLower),
             parseTick(position.tickUpper),
@@ -116,21 +120,25 @@ async function getPositions(owner: string, pool: string): Promise<void> {
             BigNumber.from(position.pool.feeGrowthGlobal0X128),
             BigNumber.from(position.pool.feeGrowthGlobal1X128),
         );
-        let fees = getFees(
+        let fees = getTotalPositionFees(
             feeGrowthInside0X128,
             feeGrowthInside1X128,
             BigNumber.from(position.feeGrowthInside0LastX128),
             BigNumber.from(position.feeGrowthInside1LastX128),
             BigNumber.from(position.liquidity),
         );
-        console.log(fees.feesToken0.toString());
-        console.log(fees.feesToken1.toString());
+
+        totalFees.feesToken0 = totalFees.feesToken0.add(fees.feesToken0);
+        totalFees.feesToken1 = totalFees.feesToken1.add(fees.feesToken1);
     }
+    return totalFees;
 }
 
 // (async function main() {
-//     await getPositions(
+//     const totalFees = await getTotalUserPoolFees(
 //         '0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1',
 //         '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f',
 //     );
+//     console.log(totalFees.feesToken0.toString());
+//     console.log(totalFees.feesToken1.toString());
 // })().catch(error => console.error(error));
