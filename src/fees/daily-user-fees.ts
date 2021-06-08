@@ -104,6 +104,7 @@ function computeFees(data: any, positions: any, positionSnaps: any): Fees {
     for (const position of positions) {
         const positionFees: PositionFees = {};
         // 2. get snaps belonging to a given position
+        // (filter preserves order hence I can rely on snaps being sorted)
         const relevantSnaps = positionSnaps.filter(
             (snap: { position: { id: any } }) => snap.position.id == position.id,
         );
@@ -118,9 +119,9 @@ function computeFees(data: any, positions: any, positionSnaps: any): Fees {
             data['t' + position.pool.id + '_' + position.tickUpper.tickIdx.replace('-', '_')];
 
         // 4. Iterate over pool day data
-        let feeGrowthInside0LastX128;
-        let feeGrowthInside1LastX128;
-        let mostRelevantSnap = relevantSnaps[0];
+        let feeGrowthInside0LastX128 = BigNumber.from(relevantSnaps[0].feeGrowthInside0LastX128);
+        let feeGrowthInside1LastX128 = BigNumber.from(relevantSnaps[0].feeGrowthInside1LastX128);
+        let currentSnapIndex = 0;
         for (const poolDayData of relevantPoolDayDatas) {
             const lowerTickDayDataRaw = lowerTickSnaps.find(
                 (tickSnap: { date: any }) => tickSnap.date == poolDayData.date,
@@ -144,14 +145,12 @@ function computeFees(data: any, positions: any, positionSnaps: any): Fees {
                 upperTickDayData = parseTickDayData(upperTickDayDataRaw);
             }
 
-            // 5. find the closest snap preceding day data
-            for (const snap of relevantSnaps) {
-                if (
-                    snap.timestamp <= poolDayData.date &&
-                    snap.timestamp > mostRelevantSnap.timestamp
-                ) {
-                    mostRelevantSnap = snap;
-                }
+            // 5. increment snap index if necessary
+            if (
+                currentSnapIndex < relevantSnaps.length - 1 &&
+                relevantSnaps[currentSnapIndex + 1].timestamp <= poolDayData.date
+            ) {
+                currentSnapIndex += 1;
             }
 
             let [feeGrowthInside0X128, feeGrowthInside1X128] = getFeeGrowthInside(
@@ -161,15 +160,13 @@ function computeFees(data: any, positions: any, positionSnaps: any): Fees {
                 BigNumber.from(poolDayData.feeGrowthGlobal0X128),
                 BigNumber.from(poolDayData.feeGrowthGlobal1X128),
             );
-            if (feeGrowthInside0LastX128 !== undefined && feeGrowthInside1LastX128 !== undefined) {
-                positionFees[poolDayData.date] = getTotalPositionFees(
-                    feeGrowthInside0X128,
-                    feeGrowthInside1X128,
-                    feeGrowthInside0LastX128,
-                    feeGrowthInside1LastX128,
-                    BigNumber.from(mostRelevantSnap.liquidity),
-                );
-            }
+            positionFees[poolDayData.date] = getTotalPositionFees(
+                feeGrowthInside0X128,
+                feeGrowthInside1X128,
+                feeGrowthInside0LastX128,
+                feeGrowthInside1LastX128,
+                BigNumber.from(relevantSnaps[currentSnapIndex].liquidity),
+            );
             feeGrowthInside0LastX128 = feeGrowthInside0X128;
             feeGrowthInside1LastX128 = feeGrowthInside1X128;
         }
