@@ -176,7 +176,7 @@ function computeFees(data: any, positions: any, positionSnaps: any): Fees {
 }
 
 export async function getDailyUserPoolFees(
-    owner: string,
+    user: string,
     pool: string,
     numDays: number,
 ): Promise<Fees> {
@@ -184,7 +184,7 @@ export async function getDailyUserPoolFees(
     let result = await client.query({
         query: TICK_IDS_QUERY,
         variables: {
-            owner: owner,
+            owner: user,
             pool: pool,
         },
     });
@@ -214,7 +214,7 @@ export async function getDailyUserPoolFees(
 
     // 4. fetch positions snapshots and pool and tick day data
     result = await client.query({
-        query: gql(buildQuery(owner, pool, minTimestamp, relevantTicks)),
+        query: gql(buildQuery(user, pool, minTimestamp, relevantTicks)),
     });
 
     // 5. compute fees from all the data
