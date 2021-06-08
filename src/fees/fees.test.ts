@@ -38,6 +38,18 @@ describe('Test fees', () => {
             );
         }
 
-        expect(positionDailyFeesSum).toEqual(totalFeesFromContract);
+        // Note: There will always be imprecision in the daily fees because the pool
+        // data are saved once a day and not at the time of snapshots
+        const token0Diff = positionDailyFeesSum.feesToken0
+            .sub(totalFeesFromContract.feesToken0)
+            .abs()
+            .toNumber();
+        const token1Diff = positionDailyFeesSum.feesToken1
+            .sub(totalFeesFromContract.feesToken1)
+            .abs()
+            .toNumber();
+
+        expect(token0Diff).toBeLessThan(10 ** 15);
+        expect(token1Diff).toBeLessThan(10 ** 15);
     });
 });
