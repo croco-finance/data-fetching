@@ -22,6 +22,19 @@ const TICK_IDS_QUERY = gql`
                 feeGrowthOutside1X128
             }
         }
+        positionSnapshots(
+            where: { owner: $owner, pool: $pool }
+            orderBy: timestamp
+            orderDirection: asc
+        ) {
+            position {
+                id
+            }
+            timestamp
+            liquidity
+            feeGrowthInside0LastX128
+            feeGrowthInside1LastX128
+        }
     }
 `;
 
@@ -47,15 +60,6 @@ function buildQuery(
     relevantTickIds: string[],
 ): string {
     let query = `{
-            positionSnapshots(where: {owner: "${owner}", pool: "${pool}"}, orderBy: timestamp, orderDirection: asc) {
-                position {
-                    id
-                }
-                timestamp
-                liquidity
-                feeGrowthInside0LastX128
-                feeGrowthInside1LastX128
-            }
             poolDayDatas(where: {pool: "${pool}", date_gt: ${minTimestamp}}, orderBy: date, orderDirection: asc) {
                 date
                 tick
@@ -94,13 +98,13 @@ function parseTick(tick: any): Tick {
     };
 }
 
-function computeFees(data: any, positions: any): Fees {
+function computeFees(data: any, positions: any, positionSnaps: any): Fees {
     const fees: Fees = {};
     // 1. Iterate over positions
     for (const position of positions) {
         const positionFees: PositionFees = {};
         // 2. get snaps belonging to a given position
-        const relevantSnaps = data.positionSnapshots.filter(
+        const relevantSnaps = positionSnaps.filter(
             (snap: { position: { id: any } }) => snap.position.id == position.id,
         );
         // 3. pool day data older than the first snap
@@ -187,7 +191,9 @@ export async function getDailyUserPoolFees(
             pool: pool,
         },
     });
+
     const positions = result.data.positions;
+    const positionSnapshots = result.data.positionSnapshots;
 
     // 2. create tick ids from tickIdxes and pool address
     const relevantTicks: string[] = [];
@@ -199,14 +205,23 @@ export async function getDailyUserPoolFees(
         relevantTicks.push(tickUpperId);
     }
 
-    // 3. fetch positions snapshots and pool and tick day data
-    const minTimestamp = dayjs().subtract(numDays, 'day').unix();
+    // 3. get the time from which to fetch day data
+    let oldestSnapTimestamp = Number.MAX_VALUE;
+    for (const snap of positionSnapshots) {
+        const snapTimestamp = Number(snap.timestamp);
+        if (snapTimestamp < oldestSnapTimestamp) {
+            oldestSnapTimestamp = snapTimestamp;
+        }
+    }
+    const minTimestamp = Math.max(dayjs().subtract(numDays, 'day').unix(), oldestSnapTimestamp);
+
+    // 4. fetch positions snapshots and pool and tick day data
     result = await client.query({
         query: gql(buildQuery(owner, pool, minTimestamp, relevantTicks)),
     });
 
-    // 4. compute fees from all the data
-    return computeFees(result.data, positions);
+    // 5. compute fees from all the data
+    return computeFees(result.data, positions, positionSnapshots);
 }
 
 // (async function main() {
