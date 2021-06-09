@@ -36,26 +36,36 @@ const LIQUIDITY_QUERY = gql`
     }
 `;
 
-async function getLiquidity(owner: string, poolAddr: string): Promise<void> {
+interface DensityChart {
+    investmentUsd: number;
+    priceMin: number;
+    priceMax: number;
+}
+
+async function getLiquidityOfUserPoolPositions(
+    user: string,
+    pool: string,
+): Promise<DensityChart[]> {
     let result = await client.query({
         query: LIQUIDITY_QUERY,
         variables: {
-            owner: owner,
-            pool: poolAddr,
+            owner: user,
+            pool: pool,
         },
     });
 
-    const pool = getPool(result.data.pool);
+    const poolInstance = getPool(result.data.pool);
     const ethPrice = Number(result.data.bundle.ethPriceUSD);
+
+    const liquidityOfPositions: DensityChart[] = [];
 
     for (const rawPosition of result.data.positions) {
         const position = new Position({
-            pool,
+            pool: poolInstance,
             liquidity: rawPosition.liquidity,
             tickLower: parseInt(rawPosition.tickLower.tickIdx),
             tickUpper: parseInt(rawPosition.tickUpper.tickIdx),
         });
-        // console.log(position.amount0);
         const token0LiquidityUsd =
             Number(position.amount0.toExact()) *
             ethPrice *
@@ -64,16 +74,20 @@ async function getLiquidity(owner: string, poolAddr: string): Promise<void> {
             Number(position.amount1.toExact()) *
             ethPrice *
             Number(result.data.pool.token1.derivedETH);
-        const liquidityUsd = token0LiquidityUsd + token1LiquidityUsd;
-        console.log('Token0 amount', position.amount0.toExact());
-        console.log('Token1 amount', position.amount1.toExact());
-        console.log('Liquidity Value: ', liquidityUsd);
+
+        liquidityOfPositions.push({
+            investmentUsd: token0LiquidityUsd + token1LiquidityUsd,
+            priceMin: Number(position.token0PriceUpper.invert().toSignificant()),
+            priceMax: Number(position.token0PriceLower.invert().toSignificant()),
+        });
     }
+    return liquidityOfPositions;
 }
 
 (async function main() {
-    await getLiquidity(
+    const liquidity = await getLiquidityOfUserPoolPositions(
         '0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1',
         '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f',
     );
+    console.log(liquidity);
 })().catch(error => console.error(error));
