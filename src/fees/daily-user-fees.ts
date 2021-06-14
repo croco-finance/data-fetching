@@ -84,7 +84,7 @@ function buildQuery(
 
 function parseTickDayData(tickDayData: any): Tick {
     return {
-        id: BigNumber.from(tickDayData.tick.tickIdx),
+        idx: BigNumber.from(tickDayData.tick.tickIdx),
         feeGrowthOutside0X128: BigNumber.from(tickDayData.feeGrowthOutside0X128),
         feeGrowthOutside1X128: BigNumber.from(tickDayData.feeGrowthOutside1X128),
     };
@@ -92,7 +92,7 @@ function parseTickDayData(tickDayData: any): Tick {
 
 function parseTick(tick: any): Tick {
     return {
-        id: BigNumber.from(tick.tickIdx),
+        idx: BigNumber.from(tick.tickIdx),
         feeGrowthOutside0X128: BigNumber.from(tick.feeGrowthOutside0X128),
         feeGrowthOutside1X128: BigNumber.from(tick.feeGrowthOutside1X128),
     };

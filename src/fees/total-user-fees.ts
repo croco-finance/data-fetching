@@ -7,7 +7,7 @@ import { TokenFees } from './daily-user-fees';
 const Q128 = BigNumber.from('0x100000000000000000000000000000000');
 
 export interface Tick {
-    id: BigNumber;
+    idx: BigNumber;
     feeGrowthOutside0X128: BigNumber;
     feeGrowthOutside1X128: BigNumber;
 }
@@ -21,12 +21,12 @@ const POSITIONS_QUERY = gql`
                 feeGrowthGlobal1X128
             }
             tickLower {
-                id: tickIdx
+                idx: tickIdx
                 feeGrowthOutside0X128
                 feeGrowthOutside1X128
             }
             tickUpper {
-                id: tickIdx
+                idx: tickIdx
                 feeGrowthOutside0X128
                 feeGrowthOutside1X128
             }
@@ -37,9 +37,9 @@ const POSITIONS_QUERY = gql`
     }
 `;
 
-function parseTick(tick: any): Tick {
+export function parseTick(tick: any): Tick {
     return {
-        id: BigNumber.from(tick.id),
+        idx: BigNumber.from(tick.idx),
         feeGrowthOutside0X128: BigNumber.from(tick.feeGrowthOutside0X128),
         feeGrowthOutside1X128: BigNumber.from(tick.feeGrowthOutside1X128),
     };
@@ -56,7 +56,7 @@ export function getFeeGrowthInside(
     // calculate fee growth below
     let feeGrowthBelow0X128: BigNumber;
     let feeGrowthBelow1X128: BigNumber;
-    if (tickCurrentId.gte(tickLower.id)) {
+    if (tickCurrentId.gte(tickLower.idx)) {
         feeGrowthBelow0X128 = tickLower.feeGrowthOutside0X128;
         feeGrowthBelow1X128 = tickLower.feeGrowthOutside1X128;
     } else {
@@ -67,7 +67,7 @@ export function getFeeGrowthInside(
     // calculate fee growth above
     let feeGrowthAbove0X128: BigNumber;
     let feeGrowthAbove1X128: BigNumber;
-    if (tickCurrentId.lt(tickUpper.id)) {
+    if (tickCurrentId.lt(tickUpper.idx)) {
         feeGrowthAbove0X128 = tickUpper.feeGrowthOutside0X128;
         feeGrowthAbove1X128 = tickUpper.feeGrowthOutside1X128;
     } else {
