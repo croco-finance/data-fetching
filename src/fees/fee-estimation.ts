@@ -101,7 +101,6 @@ async function estimate24hUsdFees(
     numDaysAgo: number,
 ): Promise<number> {
     // 1. Fetch block from numDaysAgo
-    // This operation is really slow - consider replacing or calling in advance
     const blockNumDaysAgo = await getBlockNumDaysAgo(numDaysAgo);
 
     // 2. fetch all the other data

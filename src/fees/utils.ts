@@ -21,11 +21,11 @@ export async function getLatestBlock(): Promise<number> {
 }
 
 const BLOCK_QUERY = gql`
-    query block($timestamp: Int) {
+    query block($timestampMin: Int, $timestampMax: Int) {
         blocks(
             first: 1
-            where: { timestamp_gte: $timestamp }
-            orderBy: number
+            where: { timestamp_gt: $timestampMin, timestamp_lt: $timestampMax }
+            orderBy: timestamp
             orderDirection: asc
         ) {
             number
@@ -34,10 +34,13 @@ const BLOCK_QUERY = gql`
 `;
 
 export async function getBlockNumDaysAgo(numDays: number): Promise<number> {
+    const timestampMin = dayjs().subtract(numDays, 'day').unix();
+    const timestampMax = timestampMin + 300;
     const result = await blockClient.query({
         query: BLOCK_QUERY,
         variables: {
-            timestamp: dayjs().subtract(numDays, 'day').unix(),
+            timestampMin,
+            timestampMax,
         },
     });
 
