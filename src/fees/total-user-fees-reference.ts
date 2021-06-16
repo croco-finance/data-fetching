@@ -1,6 +1,9 @@
 import { abi as NFTPositionManagerABI } from '@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json';
 import { BigNumber, ethers } from 'ethers';
 import { TokenFees } from './daily-user-fees';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 const NFTPositionManagerAddress = '0xC36442b4a4522E871399CD717aBDD847Ab11FE88';
 const MAX_UINT128 = BigNumber.from(2).pow(128).sub(1);
@@ -10,7 +13,7 @@ export async function getPositionFees(
     owner: string,
     blockTag = -1,
 ): Promise<TokenFees> {
-    const provider = new ethers.providers.JsonRpcProvider('http://localhost:8545/');
+    const provider = new ethers.providers.JsonRpcProvider(process.env.JSON_RPC);
     const positionManager = new ethers.Contract(
         NFTPositionManagerAddress,
         NFTPositionManagerABI,
