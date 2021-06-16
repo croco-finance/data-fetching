@@ -9,10 +9,10 @@ const POOL = '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f';
 
 const POSITION_ID = BigNumber.from(34054);
 
-// accepted difference between sum of daily fees and reference
+// acceptable difference between sum of daily fees and reference
 // Note: the returned values are in the smallest units (e.g. multiplied
 // by 10^18 for WETH) so 1000 is a really small diff
-const ACCEPTED_DIFF = BigNumber.from('1000');
+const ACCEPTABLE_DIFF = BigNumber.from('1000');
 
 describe('Test fees', () => {
     test('Total fees computed from subgraph data are equal to the ones from contract call', async () => {
@@ -61,7 +61,7 @@ describe('Test fees', () => {
             .sub(totalFeesFromContract.feesToken1)
             .abs();
 
-        expect(token0Diff.lte(ACCEPTED_DIFF)).toBeTruthy();
-        expect(token1Diff.lte(ACCEPTED_DIFF)).toBeTruthy();
+        expect(token0Diff.lte(ACCEPTABLE_DIFF)).toBeTruthy();
+        expect(token1Diff.lte(ACCEPTABLE_DIFF)).toBeTruthy();
     });
 });
