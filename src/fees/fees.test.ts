@@ -33,7 +33,7 @@ describe('Test fees', () => {
             USER,
             await getLatestIndexedBlock(),
         );
-        const poolUserDailyFees = await getDailyUserPoolFees(USER, POOL, 30);
+        const poolUserDailyFees = await getDailyUserPoolFees(USER, POOL, 365);
 
         const positionDailyFees = poolUserDailyFees[POSITION_ID.toString()];
 
