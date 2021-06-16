@@ -40,7 +40,7 @@ export async function getPositionFees(
 }
 
 // (async function main() {
-//     const latestIndexedBlock = await getLatestBlock();
+//     const latestIndexedBlock = await getLatestIndexedBlock();
 //     const tokenId = BigNumber.from(34054);
 //     const owner = '0x95Ae3008c4ed8c2804051DD00f7A27dAd5724Ed1';
 //     await getPositionFees(tokenId, owner, latestIndexedBlock);

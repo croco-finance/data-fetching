@@ -12,7 +12,7 @@ const LATEST_INDEXED_BLOCK_QUERY = gql`
     }
 `;
 
-export async function getLatestBlock(): Promise<number> {
+export async function getLatestIndexedBlock(): Promise<number> {
     const result = await client.query({
         query: LATEST_INDEXED_BLOCK_QUERY,
     });
