@@ -7,7 +7,7 @@ import { BigNumber } from 'ethers';
 import { getBlockNumDaysAgo } from './utils';
 import { formatUnits } from 'ethers/lib/utils';
 
-const FEE_ESTIMATE_QUERY = gql`
+export const FEE_ESTIMATE_QUERY = gql`
     query feeEstimationData($pool: String, $tickLower: Int, $tickUpper: Int, $block: Int) {
         bundle(id: "1") {
             ethPriceUSD
@@ -93,7 +93,7 @@ const FEE_ESTIMATE_QUERY = gql`
     }
 `;
 
-function getPosition(
+export function getPosition(
     result: any,
     tickLower: number,
     tickUpper: number,

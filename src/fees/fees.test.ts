@@ -4,15 +4,17 @@ import { getPositionFees } from './total-user-fees-reference';
 import { getDailyUserPoolFees, TokenFees } from './daily-user-fees';
 import { getLatestIndexedBlock, getPoolTokenPrices } from './utils';
 import dayjs from 'dayjs';
-import { estimate24hUsdFees } from './fee-estimation';
+import { estimate24hUsdFees, FEE_ESTIMATE_QUERY, getPosition } from './fee-estimation';
 import { formatUnits } from 'ethers/lib/utils';
+import { client } from '../apollo/client';
 
 const USER = '0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1';
 const POOL = '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f';
 
 const POSITION_ID = BigNumber.from(34054);
 const POSITION_CREATION_TIMESTAMP = 1622711721;
-const POSITION_CREATION_USD_VAL = 19874.83769869;
+const POSITION_LIQUIDITY = BigNumber.from('180196358198030075483');
+const POSITION_LIQUIDITY_USD = 19874.83769869;
 const POSITION_TICK_LOWER = -31980;
 const POSITION_TICK_UPPER = -28320;
 
@@ -22,6 +24,7 @@ const POSITION_TICK_UPPER = -28320;
 const ACCEPTABLE_DIFF = BigNumber.from('1000');
 
 describe('Test fees and fee estimate', () => {
+    // all the tests pass only if the user owns 1 position with ID 34054
     let totalFeesFromContract: TokenFees;
     let latestIndexedBlock: number;
 
@@ -31,14 +34,12 @@ describe('Test fees and fee estimate', () => {
     });
 
     test('Total fees computed from subgraph data are equal to the ones from contract call', async () => {
-        // this test passes only when the user has only position in a pool with ID 34054
         const totalFeesFromSubgraph = await getTotalUserPoolFees(USER, POOL);
 
         expect(totalFeesFromSubgraph).toEqual(totalFeesFromContract);
     });
 
     test('Sum of daily fees equals total fees from contract call', async () => {
-        // this test passes only when the user has only position in a pool with ID 34054
         const poolUserDailyFees = await getDailyUserPoolFees(USER, POOL, 365);
 
         const positionDailyFees = poolUserDailyFees[POSITION_ID.toString()];
@@ -71,13 +72,45 @@ describe('Test fees and fee estimate', () => {
         expect(token1Diff.lte(ACCEPTABLE_DIFF)).toBeTruthy();
     });
 
+    test('The value of liquidity after conversion from USD to inner contract format is equal to reference', async () => {
+        // 1. Fetch all the relevant data
+        let result = await client.query({
+            query: FEE_ESTIMATE_QUERY,
+            variables: {
+                pool: POOL,
+                tickLower: POSITION_TICK_LOWER,
+                tickUpper: POSITION_TICK_UPPER,
+                block: 12560689,
+            },
+        });
+
+        // 2. Parse prices
+        const ethPrice = Number(result.data.bundle.ethPriceUSD);
+        const token0Price = ethPrice * Number(result.data.pool.token0.derivedETH);
+        const token1Price = ethPrice * Number(result.data.pool.token1.derivedETH);
+
+        // 3. Instantiate position
+        const position = getPosition(
+            result,
+            POSITION_TICK_LOWER,
+            POSITION_TICK_UPPER,
+            POSITION_LIQUIDITY_USD,
+            token0Price,
+            token1Price,
+        );
+
+        // 4. convert liquidity from JSBI format to BigNumber
+        const liquidity = BigNumber.from(position.liquidity.toString());
+
+        expect(liquidity).toEqual(POSITION_LIQUIDITY);
+    });
+
     test('24h fee estimate multiplied by the amount of days the position exists is close to the total position fees', async () => {
-        // this test passes only when the user has only position in a pool with ID 34054
         const numDays = (dayjs().unix() - POSITION_CREATION_TIMESTAMP) / 86400;
 
         const feesUsd = await estimate24hUsdFees(
             POOL,
-            POSITION_CREATION_USD_VAL,
+            POSITION_LIQUIDITY_USD,
             POSITION_TICK_LOWER,
             POSITION_TICK_UPPER,
             numDays,
