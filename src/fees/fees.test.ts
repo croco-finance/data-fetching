@@ -15,24 +15,25 @@ const POSITION_ID = BigNumber.from(34054);
 const ACCEPTABLE_DIFF = BigNumber.from('1000');
 
 describe('Test fees', () => {
+    let totalFeesFromContract: TokenFees;
+
+    beforeAll(async function () {
+        totalFeesFromContract = await getPositionFees(
+            POSITION_ID,
+            USER,
+            await getLatestIndexedBlock(),
+        );
+    });
+
     test('Total fees computed from subgraph data are equal to the ones from contract call', async () => {
         // this test passes only when the user has only position in a pool with ID 34054
         const totalFeesFromSubgraph = await getTotalUserPoolFees(USER, POOL);
-        const totalFeesFromContract = await getPositionFees(
-            POSITION_ID,
-            USER,
-            await getLatestIndexedBlock(),
-        );
 
         expect(totalFeesFromSubgraph).toEqual(totalFeesFromContract);
     });
+
     test('Sum of daily fees equals total fees from contract call', async () => {
         // this test passes only when the user has only position in a pool with ID 34054
-        const totalFeesFromContract = await getPositionFees(
-            POSITION_ID,
-            USER,
-            await getLatestIndexedBlock(),
-        );
         const poolUserDailyFees = await getDailyUserPoolFees(USER, POOL, 365);
 
         const positionDailyFees = poolUserDailyFees[POSITION_ID.toString()];
