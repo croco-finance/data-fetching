@@ -9,6 +9,11 @@ const POOL = '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f';
 
 const POSITION_ID = BigNumber.from(34054);
 
+// accepted difference between sum of daily fees and reference
+// Note: the returned values are in the smallest units (e.g. multiplied
+// by 10^18 for WETH) so 1000 is a really small diff
+const ACCEPTED_DIFF = BigNumber.from('1000');
+
 describe('Test fees', () => {
     test('Total fees computed from subgraph data are equal to the ones from contract call', async () => {
         // this test passes only when the user has only position in a pool with ID 34054
@@ -23,7 +28,11 @@ describe('Test fees', () => {
     });
     test('Sum of daily fees equals total fees from contract call', async () => {
         // this test passes only when the user has only position in a pool with ID 34054
-        const totalFeesFromContract = await getPositionFees(POSITION_ID, USER);
+        const totalFeesFromContract = await getPositionFees(
+            POSITION_ID,
+            USER,
+            await getLatestIndexedBlock(),
+        );
         const poolUserDailyFees = await getDailyUserPoolFees(USER, POOL, 30);
 
         const positionDailyFees = poolUserDailyFees[POSITION_ID.toString()];
@@ -47,14 +56,12 @@ describe('Test fees', () => {
         // data are saved once a day and not at the time of snapshots
         const token0Diff = positionDailyFeesSum.feesToken0
             .sub(totalFeesFromContract.feesToken0)
-            .abs()
-            .toNumber();
+            .abs();
         const token1Diff = positionDailyFeesSum.feesToken1
             .sub(totalFeesFromContract.feesToken1)
-            .abs()
-            .toNumber();
+            .abs();
 
-        expect(token0Diff).toBeLessThan(10 ** 15);
-        expect(token1Diff).toBeLessThan(10 ** 15);
+        expect(token0Diff.lte(ACCEPTED_DIFF)).toBeTruthy();
+        expect(token1Diff.lte(ACCEPTED_DIFF)).toBeTruthy();
     });
 });
