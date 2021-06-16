@@ -93,6 +93,48 @@ const FEE_ESTIMATE_QUERY = gql`
     }
 `;
 
+function getPosition(
+    result: any,
+    tickLower: number,
+    tickUpper: number,
+    liquidityUsd: number,
+    token0Price: number,
+    token1Price: number,
+): Position {
+    const tick = Number(result.data.pool.tick);
+
+    const poolInstance = getPool(result.data.pool);
+
+    let token0Share: number;
+    let token1Share: number;
+
+    if (tick <= tickLower) {
+        token0Share = 0;
+        token1Share = 1;
+    } else if (tickLower < tick && tick < tickUpper) {
+        token1Share = (tick - tickLower) / (tickUpper - tickLower);
+        token0Share = (tickUpper - tick) / (tickUpper - tickLower);
+    } else {
+        token0Share = 1;
+        token1Share = 0;
+    }
+
+    const token0Amount =
+        (liquidityUsd / token0Price) * token0Share * 10 ** Number(result.data.pool.token0.decimals);
+
+    const token1Amount =
+        (liquidityUsd / token1Price) * token1Share * 10 ** Number(result.data.pool.token1.decimals);
+
+    return Position.fromAmounts({
+        pool: poolInstance,
+        tickLower: tickLower,
+        tickUpper: tickUpper,
+        amount0: token0Amount,
+        amount1: token1Amount,
+        useFullPrecision: true,
+    });
+}
+
 export async function estimate24hUsdFees(
     pool: string,
     liquidityUsd: number,
@@ -114,45 +156,7 @@ export async function estimate24hUsdFees(
         },
     });
 
-    // 3. convert liquidityUsd to liquidity
-    const poolInstance = getPool(result.data.pool);
-    const ethPrice = Number(result.data.bundle.ethPriceUSD);
-    const tick = Number(result.data.pool.tick);
-
-    let token0Share: number;
-    let token1Share: number;
-
-    if (tick <= tickLower) {
-        token0Share = 0;
-        token1Share = 1;
-    } else if (tickLower < tick && tick < tickUpper) {
-        token1Share = (tick - tickLower) / (tickUpper - tickLower);
-        token0Share = (tickUpper - tick) / (tickUpper - tickLower);
-    } else {
-        token0Share = 1;
-        token1Share = 0;
-    }
-
-    const token0Price = ethPrice * Number(result.data.pool.token0.derivedETH);
-    const token0Amount =
-        (liquidityUsd / token0Price) * token0Share * 10 ** Number(result.data.pool.token0.decimals);
-
-    const token1Price = ethPrice * Number(result.data.pool.token1.derivedETH);
-    const token1Amount =
-        (liquidityUsd / token1Price) * token1Share * 10 ** Number(result.data.pool.token1.decimals);
-
-    const position = Position.fromAmounts({
-        pool: poolInstance,
-        tickLower: tickLower,
-        tickUpper: tickUpper,
-        amount0: token0Amount,
-        amount1: token1Amount,
-        useFullPrecision: true,
-    });
-
-    const liquidity = BigNumber.from(position.liquidity.toString());
-
-    // 4. Parse and verify data
+    // 3. Parse and verify data
     const poolDataCurrent = result.data.pool;
     const tickLowerInstanceCurrent = parseTick(result.data.tickLower[0]);
     const tickUpperInstanceCurrent = parseTick(result.data.tickUpper[0]);
@@ -188,12 +192,27 @@ export async function estimate24hUsdFees(
         BigNumber.from(poolDataOld.feeGrowthGlobal1X128),
     );
 
+    // 4. convert liquidityUsd to liquidity
+    const ethPrice = Number(result.data.bundle.ethPriceUSD);
+    const token0Price = ethPrice * Number(result.data.pool.token0.derivedETH);
+    const token1Price = ethPrice * Number(result.data.pool.token1.derivedETH);
+
+    const liquidityJSBI = getPosition(
+        result,
+        tickLower,
+        tickUpper,
+        liquidityUsd,
+        token0Price,
+        token1Price,
+    ).liquidity;
+
+    // 5. compute fees
     let fees = getTotalPositionFees(
         feeGrowthInside0X128,
         feeGrowthInside1X128,
         feeGrowthInside0LastX128,
         feeGrowthInside1LastX128,
-        liquidity,
+        BigNumber.from(liquidityJSBI.toString()),
     );
 
     const feesToken0 = Number(formatUnits(fees.feesToken0, result.data.pool.token0.decimals));
