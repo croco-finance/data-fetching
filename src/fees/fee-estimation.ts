@@ -93,7 +93,7 @@ const FEE_ESTIMATE_QUERY = gql`
     }
 `;
 
-async function estimate24hUsdFees(
+export async function estimate24hUsdFees(
     pool: string,
     liquidityUsd: number,
     tickLower: number,
@@ -202,13 +202,13 @@ async function estimate24hUsdFees(
     return (feesToken0 * token0Price + feesToken1 * token1Price) / numDaysAgo;
 }
 
-(async function main() {
-    const feesUsd = await estimate24hUsdFees(
-        '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f',
-        15902,
-        -31980,
-        -28320,
-        7,
-    );
-    console.log(feesUsd);
-})().catch(error => console.error(error));
+// (async function main() {
+//     const feesUsd = await estimate24hUsdFees(
+//         '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f',
+//         15902,
+//         -31980,
+//         -28320,
+//         7,
+//     );
+//     console.log(feesUsd);
+// })().catch(error => console.error(error));
