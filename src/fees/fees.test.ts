@@ -21,7 +21,7 @@ const POSITION_CREATION_BLOCK = 12560689;
 // acceptable difference between sum of daily fees and reference
 // Note: the returned values are in the smallest units (e.g. multiplied
 // by 10^18 for WETH) so 1000 is a really small diff
-const ACCEPTABLE_DIFF = BigNumber.from('1000');
+const ACCEPTABLE_DIFF = BigInt('1000');
 
 describe('Test fees and fee estimate', () => {
     // all the tests pass only if the user owns 1 position with ID 34054
@@ -76,13 +76,15 @@ describe('Test fees and fee estimate', () => {
         // data are saved once a day and not at the time of snapshots
         const token0Diff = positionDailyFeesSum.feesToken0
             .sub(totalFeesFromContract.feesToken0)
-            .abs();
+            .abs()
+            .toBigInt();
         const token1Diff = positionDailyFeesSum.feesToken1
             .sub(totalFeesFromContract.feesToken1)
-            .abs();
+            .abs()
+            .toBigInt();
 
-        expect(token0Diff.lte(ACCEPTABLE_DIFF)).toBeTruthy();
-        expect(token1Diff.lte(ACCEPTABLE_DIFF)).toBeTruthy();
+        expect(token0Diff).toBeLessThan(ACCEPTABLE_DIFF);
+        expect(token1Diff).toBeLessThan(ACCEPTABLE_DIFF);
     });
 
     test('The value of liquidity is equal to reference after conversion from USD to inner contract format', async () => {
