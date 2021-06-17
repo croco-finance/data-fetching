@@ -1,24 +1,22 @@
-import { getTotalUserPoolFees } from './total-user-fees';
+import { getTotalOwnerPoolFees } from './total-owner-pool-fees';
 import { BigNumber } from 'ethers';
-import { getPositionFees } from './total-user-fees-reference';
-import { getDailyUserPoolFees, TokenFees } from './daily-user-fees';
-import { getLatestIndexedBlock, getPoolTokenPrices } from './utils';
+import { getPositionFees } from './total-position-fees-reference';
+import { getDailyOwnerPoolFees, TokenFees } from './daily-owner-pool-fees';
+import { getLatestIndexedBlock } from './utils';
 import dayjs from 'dayjs';
 import { estimate24hUsdFees, FEE_ESTIMATE_QUERY, getPosition } from './fee-estimation';
 import { formatUnits } from 'ethers/lib/utils';
 import { client } from '../apollo/client';
+import { fetchPosition, getPoolTokenPrices } from './test-utils';
+import { Position } from '@uniswap/v3-sdk';
 
 jest.setTimeout(30000);
 
-const USER = '0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1';
-const POOL = '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f';
-
-const POSITION_ID = BigNumber.from(34054);
+const POSITION_OWNER = '0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1';
+const POSITION_ID = '34054';
+const POSITION_POOL = '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f';
 const POSITION_CREATION_TIMESTAMP = 1622711721;
-const POSITION_LIQUIDITY = BigNumber.from('180196358198030075483');
-const POSITION_LIQUIDITY_USD = 19874.83769869;
-const POSITION_TICK_LOWER = -31980;
-const POSITION_TICK_UPPER = -28320;
+const POSITION_CREATION_BLOCK = 12560689;
 
 // acceptable difference between sum of daily fees and reference
 // Note: the returned values are in the smallest units (e.g. multiplied
@@ -27,22 +25,35 @@ const ACCEPTABLE_DIFF = BigNumber.from('1000');
 
 describe('Test fees and fee estimate', () => {
     // all the tests pass only if the user owns 1 position with ID 34054
-    let totalFeesFromContract: TokenFees;
     let latestIndexedBlock: number;
+    let totalFeesFromContract: TokenFees;
+    let position: Position;
+    let token0Price: number;
+    let token1Price: number;
+    let positionLiquidityUsd: number;
 
     beforeAll(async function () {
         latestIndexedBlock = await getLatestIndexedBlock();
-        totalFeesFromContract = await getPositionFees(POSITION_ID, USER, latestIndexedBlock);
+        totalFeesFromContract = await getPositionFees(
+            POSITION_ID,
+            POSITION_OWNER,
+            latestIndexedBlock,
+        );
+        position = await fetchPosition(POSITION_ID);
+        [token0Price, token1Price] = await getPoolTokenPrices(POSITION_POOL, latestIndexedBlock);
+        positionLiquidityUsd =
+            Number(position.amount0.toSignificant()) * token0Price +
+            Number(position.amount1.toSignificant()) * token1Price;
     });
 
     test('Total fees computed from subgraph data are equal to the ones from contract call', async () => {
-        const totalFeesFromSubgraph = await getTotalUserPoolFees(USER, POOL);
+        const totalFeesFromSubgraph = await getTotalOwnerPoolFees(POSITION_OWNER, POSITION_POOL);
 
         expect(totalFeesFromSubgraph).toEqual(totalFeesFromContract);
     });
 
     test('Sum of daily fees equals total fees from contract call', async () => {
-        const poolUserDailyFees = await getDailyUserPoolFees(USER, POOL, 365);
+        const poolUserDailyFees = await getDailyOwnerPoolFees(POSITION_OWNER, POSITION_POOL, 365);
 
         const positionDailyFees = poolUserDailyFees[POSITION_ID.toString()];
 
@@ -79,48 +90,47 @@ describe('Test fees and fee estimate', () => {
         let result = await client.query({
             query: FEE_ESTIMATE_QUERY,
             variables: {
-                pool: POOL,
-                tickLower: POSITION_TICK_LOWER,
-                tickUpper: POSITION_TICK_UPPER,
-                block: 12560689,
+                pool: POSITION_POOL,
+                tickLower: position.tickLower,
+                tickUpper: position.tickUpper,
+                block: POSITION_CREATION_BLOCK,
             },
         });
 
         // 2. Parse prices
         const ethPrice = Number(result.data.bundle.ethPriceUSD);
-        const token0Price = ethPrice * Number(result.data.pool.token0.derivedETH);
-        const token1Price = ethPrice * Number(result.data.pool.token1.derivedETH);
+        const token0PriceDerived = ethPrice * Number(result.data.pool.token0.derivedETH);
+        const token1PriceDerived = ethPrice * Number(result.data.pool.token1.derivedETH);
 
         // 3. Instantiate position
-        const position = getPosition(
+        const positionFromUsd = getPosition(
             result,
-            POSITION_TICK_LOWER,
-            POSITION_TICK_UPPER,
-            POSITION_LIQUIDITY_USD,
-            token0Price,
-            token1Price,
+            position.tickLower,
+            position.tickUpper,
+            positionLiquidityUsd,
+            token0PriceDerived,
+            token1PriceDerived,
         );
 
         // 4. convert liquidity from JSBI format to BigNumber
-        const liquidity = BigNumber.from(position.liquidity.toString());
+        // const liquidity = BigNumber.from(positionFromUsd.liquidity.toString());
 
-        expect(liquidity).toEqual(POSITION_LIQUIDITY);
+        expect(positionFromUsd.liquidity.toString()).toEqual(position.liquidity.toString());
     });
 
     test('24h fee estimate multiplied by the amount of days the position exists is close to the total position fees', async () => {
         const numDays = (dayjs().unix() - POSITION_CREATION_TIMESTAMP) / 86400;
 
         const feesUsd = await estimate24hUsdFees(
-            POOL,
-            POSITION_LIQUIDITY_USD,
-            POSITION_TICK_LOWER,
-            POSITION_TICK_UPPER,
+            POSITION_POOL,
+            positionLiquidityUsd,
+            position.tickLower,
+            position.tickUpper,
             numDays,
         );
         const totalFeesUsdEstimate = feesUsd * numDays;
 
         // Fetch current token prices
-        let [token0Price, token1Price] = await getPoolTokenPrices(POOL, latestIndexedBlock);
         const totalFeesToken0UsdContract =
             Number(formatUnits(totalFeesFromContract.feesToken0, 18)) * token0Price;
         const totalFeesToken1UsdContract =

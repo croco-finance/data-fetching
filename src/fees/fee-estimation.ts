@@ -2,7 +2,7 @@ import { gql } from '@apollo/client/core';
 import { Position } from '@uniswap/v3-sdk';
 import { client } from '../apollo/client';
 import { getPool } from '../sdk-utils';
-import { getFeeGrowthInside, getTotalPositionFees, parseTick } from './total-user-fees';
+import { getFeeGrowthInside, getTotalPositionFees, parseTick } from './total-owner-pool-fees';
 import { BigNumber } from 'ethers';
 import { getBlockNumDaysAgo } from './utils';
 import { formatUnits } from 'ethers/lib/utils';
@@ -101,19 +101,17 @@ export function getPosition(
     token0Price: number,
     token1Price: number,
 ): Position {
-    const tick = Number(result.data.pool.tick);
-
-    const poolInstance = getPool(result.data.pool);
+    const pool = getPool(result.data.pool);
 
     let token0Share: number;
     let token1Share: number;
 
-    if (tick <= tickLower) {
+    if (pool.tickCurrent <= tickLower) {
         token0Share = 0;
         token1Share = 1;
-    } else if (tickLower < tick && tick < tickUpper) {
-        token1Share = (tick - tickLower) / (tickUpper - tickLower);
-        token0Share = (tickUpper - tick) / (tickUpper - tickLower);
+    } else if (tickLower < pool.tickCurrent && pool.tickCurrent < tickUpper) {
+        token1Share = (pool.tickCurrent - tickLower) / (tickUpper - tickLower);
+        token0Share = (tickUpper - pool.tickCurrent) / (tickUpper - tickLower);
     } else {
         token0Share = 1;
         token1Share = 0;
@@ -126,7 +124,7 @@ export function getPosition(
         (liquidityUsd / token1Price) * token1Share * 10 ** Number(result.data.pool.token1.decimals);
 
     return Position.fromAmounts({
-        pool: poolInstance,
+        pool: pool,
         tickLower: tickLower,
         tickUpper: tickUpper,
         amount0: token0Amount,
@@ -149,9 +147,9 @@ export async function estimate24hUsdFees(
     let result = await client.query({
         query: FEE_ESTIMATE_QUERY,
         variables: {
-            pool: pool,
-            tickLower: tickLower,
-            tickUpper: tickUpper,
+            pool,
+            tickLower,
+            tickUpper,
             block: blockNumDaysAgo,
         },
     });

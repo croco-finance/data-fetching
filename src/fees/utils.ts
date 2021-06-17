@@ -46,35 +46,3 @@ export async function getBlockNumDaysAgo(numDays: number): Promise<number> {
 
     return Number(result.data.blocks[0].number);
 }
-
-const TOKEN_PRICES_QUERY = gql`
-    query tokenPrices($pool: String, $block: Int) {
-        bundle(id: "1", block: { number: $block }) {
-            ethPriceUSD
-        }
-        pool(id: $pool, block: { number: $block }) {
-            token0 {
-                decimals
-                derivedETH
-            }
-            token1 {
-                decimals
-                derivedETH
-            }
-        }
-    }
-`;
-
-export async function getPoolTokenPrices(pool: string, block: number): Promise<[number, number]> {
-    const result = await client.query({
-        query: TOKEN_PRICES_QUERY,
-        variables: {
-            pool,
-            block,
-        },
-    });
-    const ethPrice = Number(result.data.bundle.ethPriceUSD);
-    const token0Price = ethPrice * Number(result.data.pool.token0.derivedETH);
-    const token1Price = ethPrice * Number(result.data.pool.token1.derivedETH);
-    return [token0Price, token1Price];
-}

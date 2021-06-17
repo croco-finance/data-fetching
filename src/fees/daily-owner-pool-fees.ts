@@ -2,7 +2,7 @@ import { gql } from '@apollo/client/core';
 import { client } from '../apollo/client';
 import dayjs from 'dayjs';
 import { BigNumber } from 'ethers';
-import { getFeeGrowthInside, getTotalPositionFees, Tick } from './total-user-fees';
+import { getFeeGrowthInside, getTotalPositionFees, Tick } from './total-owner-pool-fees';
 
 const TICK_IDS_QUERY = gql`
     query tickIds($owner: String, $pool: String) {
@@ -175,8 +175,8 @@ function computeFees(data: any, positions: any, positionSnaps: any): Fees {
     return fees;
 }
 
-export async function getDailyUserPoolFees(
-    user: string,
+export async function getDailyOwnerPoolFees(
+    owner: string,
     pool: string,
     numDays: number,
 ): Promise<Fees> {
@@ -184,8 +184,8 @@ export async function getDailyUserPoolFees(
     let result = await client.query({
         query: TICK_IDS_QUERY,
         variables: {
-            owner: user,
-            pool: pool,
+            owner,
+            pool,
         },
     });
 
@@ -214,7 +214,7 @@ export async function getDailyUserPoolFees(
 
     // 4. fetch positions snapshots and pool and tick day data
     result = await client.query({
-        query: gql(buildQuery(user, pool, minTimestamp, relevantTicks)),
+        query: gql(buildQuery(owner, pool, minTimestamp, relevantTicks)),
     });
 
     // 5. compute fees from all the data
@@ -222,7 +222,7 @@ export async function getDailyUserPoolFees(
 }
 
 // (async function main() {
-//     const dailyFees = await getDailyUserPoolFees(
+//     const dailyFees = await getDailyOwnerPoolFees(
 //         '0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1',
 //         '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f',
 //         30,

@@ -1,7 +1,7 @@
 import { gql } from '@apollo/client/core';
 import { client } from '../apollo/client';
 import { BigNumber } from 'ethers';
-import { TokenFees } from './daily-user-fees';
+import { TokenFees } from './daily-owner-pool-fees';
 
 // See https://docs.uniswap.org/reference/core/libraries/FixedPoint128 for details
 const Q128 = BigNumber.from('0x100000000000000000000000000000000');
@@ -98,12 +98,12 @@ export function getTotalPositionFees(
     };
 }
 
-export async function getTotalUserPoolFees(user: string, pool: string): Promise<TokenFees> {
+export async function getTotalOwnerPoolFees(owner: string, pool: string): Promise<TokenFees> {
     const result = await client.query({
         query: POSITIONS_QUERY,
         variables: {
-            owner: user,
-            pool: pool,
+            owner,
+            pool,
         },
     });
 
@@ -135,7 +135,7 @@ export async function getTotalUserPoolFees(user: string, pool: string): Promise<
 }
 
 // (async function main() {
-//     const totalFees = await getTotalUserPoolFees(
+//     const totalFees = await getTotalOwnerPoolFees(
 //         '0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1',
 //         '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f',
 //     );
