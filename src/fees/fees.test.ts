@@ -8,6 +8,8 @@ import { estimate24hUsdFees, FEE_ESTIMATE_QUERY, getPosition } from './fee-estim
 import { formatUnits } from 'ethers/lib/utils';
 import { client } from '../apollo/client';
 
+jest.setTimeout(30000);
+
 const USER = '0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1';
 const POOL = '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f';
 
@@ -72,7 +74,7 @@ describe('Test fees and fee estimate', () => {
         expect(token1Diff.lte(ACCEPTABLE_DIFF)).toBeTruthy();
     });
 
-    test('The value of liquidity after conversion from USD to inner contract format is equal to reference', async () => {
+    test('The value of liquidity is equal to reference after conversion from USD to inner contract format', async () => {
         // 1. Fetch all the relevant data
         let result = await client.query({
             query: FEE_ESTIMATE_QUERY,
