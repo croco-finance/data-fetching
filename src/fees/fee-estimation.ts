@@ -1,7 +1,7 @@
 import { gql } from '@apollo/client/core';
 import { Position } from '@uniswap/v3-sdk';
 import { client } from '../apollo/client';
-import { getPool } from '../sdk-utils';
+import { getPool, RawPoolData } from '../sdk-utils';
 import { getFeeGrowthInside, getTotalPositionFees, parseTick } from './total-owner-pool-fees';
 import { BigNumber } from 'ethers';
 import { getBlockNumDaysAgo } from './utils';
@@ -94,14 +94,14 @@ export const FEE_ESTIMATE_QUERY = gql`
 `;
 
 export function getPosition(
-    result: any,
+    rawPoolData: RawPoolData,
     tickLower: number,
     tickUpper: number,
     liquidityUsd: number,
     token0Price: number,
     token1Price: number,
 ): Position {
-    const pool = getPool(result.data.pool);
+    const pool = getPool(rawPoolData);
 
     let token0Share: number;
     let token1Share: number;
@@ -117,11 +117,9 @@ export function getPosition(
         token1Share = 0;
     }
 
-    const token0Amount =
-        (liquidityUsd / token0Price) * token0Share * 10 ** Number(result.data.pool.token0.decimals);
+    const token0Amount = (liquidityUsd / token0Price) * token0Share * 10 ** pool.token0.decimals;
 
-    const token1Amount =
-        (liquidityUsd / token1Price) * token1Share * 10 ** Number(result.data.pool.token1.decimals);
+    const token1Amount = (liquidityUsd / token1Price) * token1Share * 10 ** pool.token0.decimals;
 
     return Position.fromAmounts({
         pool: pool,
@@ -196,7 +194,7 @@ export async function estimate24hUsdFees(
     const token1Price = ethPrice * Number(result.data.pool.token1.derivedETH);
 
     const liquidityJSBI = getPosition(
-        result,
+        result.data.pool,
         tickLower,
         tickUpper,
         liquidityUsd,

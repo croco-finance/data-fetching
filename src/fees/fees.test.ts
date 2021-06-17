@@ -106,16 +106,13 @@ describe('Test fees and fee estimate', () => {
 
         // 3. Instantiate position
         const positionFromUsd = getPosition(
-            result,
+            result.data.pool,
             position.tickLower,
             position.tickUpper,
             positionLiquidityUsd,
             token0PriceDerived,
             token1PriceDerived,
         );
-
-        // 4. convert liquidity from JSBI format to BigNumber
-        // const liquidity = BigNumber.from(positionFromUsd.liquidity.toString());
 
         expect(positionFromUsd.liquidity.toString()).toEqual(position.liquidity.toString());
     });

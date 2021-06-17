@@ -6,7 +6,7 @@ interface TokenRaw {
     decimals: string;
 }
 
-interface RawPoolData {
+export interface RawPoolData {
     token0: TokenRaw;
     token1: TokenRaw;
     feeTier: string;
