@@ -1,5 +1,5 @@
 import { gql } from '@apollo/client/core';
-import { Position } from '@uniswap/v3-sdk';
+import { maxLiquidityForAmounts, TickMath } from '@uniswap/v3-sdk';
 import { client } from '../apollo/client';
 import { getPool, RawPoolData } from '../sdk-utils';
 import { getFeeGrowthInside, getTotalPositionFees, parseTick } from './total-owner-pool-fees';
@@ -93,14 +93,14 @@ export const FEE_ESTIMATE_QUERY = gql`
     }
 `;
 
-export function getPosition(
+export function getLiquidity(
     rawPoolData: RawPoolData,
     tickLower: number,
     tickUpper: number,
     liquidityUsd: number,
     token0Price: number,
     token1Price: number,
-): Position {
+): BigNumber {
     const pool = getPool(rawPoolData);
 
     let token0Share: number;
@@ -121,14 +121,15 @@ export function getPosition(
 
     const token1Amount = (liquidityUsd / token1Price) * token1Share * 10 ** pool.token0.decimals;
 
-    return Position.fromAmounts({
-        pool: pool,
-        tickLower: tickLower,
-        tickUpper: tickUpper,
-        amount0: token0Amount,
-        amount1: token1Amount,
-        useFullPrecision: true,
-    });
+    const liquidityJSBI = maxLiquidityForAmounts(
+        pool.sqrtRatioX96,
+        TickMath.getSqrtRatioAtTick(tickLower),
+        TickMath.getSqrtRatioAtTick(tickUpper),
+        token0Amount,
+        token1Amount,
+        true,
+    );
+    return BigNumber.from(liquidityJSBI.toString());
 }
 
 export async function estimate24hUsdFees(
@@ -193,14 +194,14 @@ export async function estimate24hUsdFees(
     const token0Price = ethPrice * Number(result.data.pool.token0.derivedETH);
     const token1Price = ethPrice * Number(result.data.pool.token1.derivedETH);
 
-    const liquidityJSBI = getPosition(
+    const liquidity = getLiquidity(
         result.data.pool,
         tickLower,
         tickUpper,
         liquidityUsd,
         token0Price,
         token1Price,
-    ).liquidity;
+    );
 
     // 5. compute fees
     let fees = getTotalPositionFees(
@@ -208,7 +209,7 @@ export async function estimate24hUsdFees(
         feeGrowthInside1X128,
         feeGrowthInside0LastX128,
         feeGrowthInside1LastX128,
-        BigNumber.from(liquidityJSBI.toString()),
+        liquidity,
     );
 
     const feesToken0 = Number(formatUnits(fees.feesToken0, result.data.pool.token0.decimals));

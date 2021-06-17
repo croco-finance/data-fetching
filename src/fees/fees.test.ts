@@ -4,7 +4,7 @@ import { getPositionFees } from './total-position-fees-reference';
 import { getDailyOwnerPoolFees, TokenFees } from './daily-owner-pool-fees';
 import { getLatestIndexedBlock } from './utils';
 import dayjs from 'dayjs';
-import { estimate24hUsdFees, FEE_ESTIMATE_QUERY, getPosition } from './fee-estimation';
+import { estimate24hUsdFees, FEE_ESTIMATE_QUERY, getLiquidity } from './fee-estimation';
 import { formatUnits } from 'ethers/lib/utils';
 import { client } from '../apollo/client';
 import { fetchPosition, getPoolTokenPrices } from './test-utils';
@@ -104,8 +104,8 @@ describe('Test fees and fee estimate', () => {
         const token0PriceDerived = ethPrice * Number(result.data.pool.token0.derivedETH);
         const token1PriceDerived = ethPrice * Number(result.data.pool.token1.derivedETH);
 
-        // 3. Instantiate position
-        const positionFromUsd = getPosition(
+        // 3. Compute liquidity
+        const liquidityFromUsd = getLiquidity(
             result.data.pool,
             position.tickLower,
             position.tickUpper,
@@ -114,7 +114,7 @@ describe('Test fees and fee estimate', () => {
             token1PriceDerived,
         );
 
-        expect(positionFromUsd.liquidity.toString()).toEqual(position.liquidity.toString());
+        expect(liquidityFromUsd.toString()).toEqual(position.liquidity.toString());
     });
 
     test('24h fee estimate multiplied by the amount of days the position exists is close to the total position fees', async () => {
