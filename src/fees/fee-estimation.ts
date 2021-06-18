@@ -107,18 +107,18 @@ export function getLiquidity(
     let token1Share: number;
 
     if (pool.tickCurrent <= tickLower) {
-        token0Share = 0;
-        token1Share = 1;
-    } else if (tickLower < pool.tickCurrent && pool.tickCurrent < tickUpper) {
-        token1Share = (pool.tickCurrent - tickLower) / (tickUpper - tickLower);
-        token0Share = (tickUpper - pool.tickCurrent) / (tickUpper - tickLower);
-    } else {
         token0Share = 1;
         token1Share = 0;
+    } else if (tickLower < pool.tickCurrent && pool.tickCurrent < tickUpper) {
+        token0Share = (tickUpper - pool.tickCurrent) / (tickUpper - tickLower);
+        token1Share = (pool.tickCurrent - tickLower) / (tickUpper - tickLower);
+    } else {
+        token0Share = 0;
+        token1Share = 1;
     }
 
     const token0Amount = (liquidityUsd / token0Price) * token0Share * 10 ** pool.token0.decimals;
-    const token1Amount = (liquidityUsd / token1Price) * token1Share * 10 ** pool.token0.decimals;
+    const token1Amount = (liquidityUsd / token1Price) * token1Share * 10 ** pool.token1.decimals;
 
     const liquidityJSBI = maxLiquidityForAmounts(
         pool.sqrtRatioX96,
