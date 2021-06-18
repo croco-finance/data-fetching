@@ -58,28 +58,24 @@ describe('Test fees and fee estimate', () => {
         const positionDailyFees = poolUserDailyFees[POSITION_ID.toString()];
 
         const positionDailyFeesSum: TokenFees = {
-            feesToken0: BigNumber.from(0),
-            feesToken1: BigNumber.from(0),
+            amount0: BigNumber.from(0),
+            amount1: BigNumber.from(0),
         };
 
         for (let timestampKey in positionDailyFees) {
             const dayFees = positionDailyFees[timestampKey];
-            positionDailyFeesSum.feesToken0 = positionDailyFeesSum.feesToken0.add(
-                dayFees.feesToken0,
-            );
-            positionDailyFeesSum.feesToken1 = positionDailyFeesSum.feesToken1.add(
-                dayFees.feesToken1,
-            );
+            positionDailyFeesSum.amount0 = positionDailyFeesSum.amount0.add(dayFees.amount0);
+            positionDailyFeesSum.amount1 = positionDailyFeesSum.amount1.add(dayFees.amount1);
         }
 
         // Note: There will always be imprecision in the daily fees because the pool
         // data are saved once a day and not at the time of snapshots
-        const token0Diff = positionDailyFeesSum.feesToken0
-            .sub(totalFeesFromContract.feesToken0)
+        const token0Diff = positionDailyFeesSum.amount0
+            .sub(totalFeesFromContract.amount0)
             .abs()
             .toBigInt();
-        const token1Diff = positionDailyFeesSum.feesToken1
-            .sub(totalFeesFromContract.feesToken1)
+        const token1Diff = positionDailyFeesSum.amount1
+            .sub(totalFeesFromContract.amount1)
             .abs()
             .toBigInt();
 
@@ -131,9 +127,9 @@ describe('Test fees and fee estimate', () => {
 
         // Fetch current token prices
         const totalFeesToken0UsdContract =
-            Number(formatUnits(totalFeesFromContract.feesToken0, 18)) * token0Price;
+            Number(formatUnits(totalFeesFromContract.amount0, 18)) * token0Price;
         const totalFeesToken1UsdContract =
-            Number(formatUnits(totalFeesFromContract.feesToken1, 18)) * token1Price;
+            Number(formatUnits(totalFeesFromContract.amount1, 18)) * token1Price;
         const totalFeesUsdContract = totalFeesToken0UsdContract + totalFeesToken1UsdContract;
 
         expect(totalFeesUsdEstimate).toEqual(totalFeesUsdContract);

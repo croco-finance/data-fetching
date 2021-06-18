@@ -39,8 +39,8 @@ const TICK_IDS_QUERY = gql`
 `;
 
 export interface TokenFees {
-    feesToken0: BigNumber;
-    feesToken1: BigNumber;
+    amount0: BigNumber;
+    amount1: BigNumber;
 }
 
 interface PositionFees {

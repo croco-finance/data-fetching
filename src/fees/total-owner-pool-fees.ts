@@ -93,8 +93,8 @@ export function getTotalPositionFees(
     liquidity: BigNumber,
 ): TokenFees {
     return {
-        feesToken0: feeGrowthInside0X128.sub(feeGrowthInside0LastX128).mul(liquidity).div(Q128),
-        feesToken1: feeGrowthInside1X128.sub(feeGrowthInside1LastX128).mul(liquidity).div(Q128),
+        amount0: feeGrowthInside0X128.sub(feeGrowthInside0LastX128).mul(liquidity).div(Q128),
+        amount1: feeGrowthInside1X128.sub(feeGrowthInside1LastX128).mul(liquidity).div(Q128),
     };
 }
 
@@ -108,8 +108,8 @@ export async function getTotalOwnerPoolFees(owner: string, pool: string): Promis
     });
 
     const totalFees: TokenFees = {
-        feesToken0: BigNumber.from(0),
-        feesToken1: BigNumber.from(0),
+        amount0: BigNumber.from(0),
+        amount1: BigNumber.from(0),
     };
 
     for (const position of result.data.positions) {
@@ -128,8 +128,8 @@ export async function getTotalOwnerPoolFees(owner: string, pool: string): Promis
             BigNumber.from(position.liquidity),
         );
 
-        totalFees.feesToken0 = totalFees.feesToken0.add(fees.feesToken0);
-        totalFees.feesToken1 = totalFees.feesToken1.add(fees.feesToken1);
+        totalFees.amount0 = totalFees.amount0.add(fees.amount0);
+        totalFees.amount1 = totalFees.amount1.add(fees.amount1);
     }
     return totalFees;
 }
@@ -139,6 +139,6 @@ export async function getTotalOwnerPoolFees(owner: string, pool: string): Promis
 //         '0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1',
 //         '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f',
 //     );
-//     console.log(totalFees.feesToken0.toString());
-//     console.log(totalFees.feesToken1.toString());
+//     console.log(totalFees.amount0.toString());
+//     console.log(totalFees.amount1.toString());
 // })().catch(error => console.error(error));

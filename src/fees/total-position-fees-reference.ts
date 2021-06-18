@@ -33,8 +33,8 @@ export async function getPositionFees(
         )
         .then(results => {
             return {
-                feesToken0: results.amount0,
-                feesToken1: results.amount1,
+                amount0: results.amount0,
+                amount1: results.amount1,
             };
         });
 }

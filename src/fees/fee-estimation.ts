@@ -118,7 +118,6 @@ export function getLiquidity(
     }
 
     const token0Amount = (liquidityUsd / token0Price) * token0Share * 10 ** pool.token0.decimals;
-
     const token1Amount = (liquidityUsd / token1Price) * token1Share * 10 ** pool.token0.decimals;
 
     const liquidityJSBI = maxLiquidityForAmounts(
@@ -212,8 +211,8 @@ export async function estimate24hUsdFees(
         liquidity,
     );
 
-    const feesToken0 = Number(formatUnits(fees.feesToken0, result.data.pool.token0.decimals));
-    const feesToken1 = Number(formatUnits(fees.feesToken1, result.data.pool.token1.decimals));
+    const feesToken0 = Number(formatUnits(fees.amount0, result.data.pool.token0.decimals));
+    const feesToken1 = Number(formatUnits(fees.amount1, result.data.pool.token1.decimals));
 
     return (feesToken0 * token0Price + feesToken1 * token1Price) / numDaysAgo;
 }
