@@ -2,13 +2,29 @@
 import 'cross-fetch/polyfill';
 import { ApolloClient, InMemoryCache } from '@apollo/client';
 
+// export const client = new ApolloClient({
+//     uri: 'https://api.thegraph.com/subgraphs/name/benesjan/uniswap-v3-subgraph',
+//     cache: new InMemoryCache(),
+//     queryDeduplication: false,
+//     defaultOptions: {
+//         watchQuery: {
+//             fetchPolicy: 'cache-and-network',
+//         },
+//     },
+// });
+
 export const client = new ApolloClient({
     uri: 'https://api.thegraph.com/subgraphs/name/benesjan/uniswap-v3-subgraph',
     cache: new InMemoryCache(),
     queryDeduplication: false,
     defaultOptions: {
         watchQuery: {
-            fetchPolicy: 'cache-and-network',
+            fetchPolicy: 'no-cache',
+            errorPolicy: 'ignore',
+        },
+        query: {
+            fetchPolicy: 'no-cache',
+            errorPolicy: 'all',
         },
     },
 });

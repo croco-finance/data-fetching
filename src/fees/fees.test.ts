@@ -52,7 +52,7 @@ describe('Test fees and fee estimate', () => {
         expect(totalFeesFromSubgraph).toEqual(totalFeesFromContract);
     });
 
-    test('Sum of daily fees equals total fees from contract call', async () => {
+    test('A sum of daily fees equals total fees from contract call', async () => {
         const poolUserDailyFees = await getDailyOwnerPoolFees(POSITION_OWNER, POSITION_POOL, 365);
 
         const positionDailyFees = poolUserDailyFees[POSITION_ID.toString()];
@@ -83,7 +83,9 @@ describe('Test fees and fee estimate', () => {
         expect(token1Diff).toBeLessThan(ACCEPTABLE_DIFF);
     });
 
-    test('The value of liquidity is equal to reference after conversion from USD to inner contract format', async () => {
+    test('The value of liquidity has less then 1% error compared to the reference after a conversion from USD to the inner contract format', async () => {
+        const referenceLiquidity = BigNumber.from(position.liquidity.toString());
+
         // 1. Fetch all the relevant data
         let result = await client.query({
             query: FEE_ESTIMATE_QUERY,
@@ -101,7 +103,7 @@ describe('Test fees and fee estimate', () => {
         const token1PriceDerived = ethPrice * Number(result.data.pool.token1.derivedETH);
 
         // 3. Compute liquidity
-        const liquidityFromUsd = getLiquidity(
+        const liquidity = getLiquidity(
             result.data.pool,
             position.tickLower,
             position.tickUpper,
@@ -110,10 +112,11 @@ describe('Test fees and fee estimate', () => {
             token1PriceDerived,
         );
 
-        expect(liquidityFromUsd.toString()).toEqual(position.liquidity.toString());
+        const err = liquidity.sub(referenceLiquidity).mul(100).div(referenceLiquidity).abs();
+        expect(err.toNumber()).toBeLessThan(1);
     });
 
-    test('24h fee estimate multiplied by the amount of days the position exists is close to the total position fees', async () => {
+    test('24h fee estimate multiplied by the amount of days the position exists has less then a 5% error compared to the total position fees', async () => {
         const numDays = (dayjs().unix() - POSITION_CREATION_TIMESTAMP) / 86400;
 
         const feesUsd = await estimate24hUsdFees(
@@ -132,6 +135,8 @@ describe('Test fees and fee estimate', () => {
             Number(formatUnits(totalFeesFromContract.amount1, 18)) * token1Price;
         const totalFeesUsdContract = totalFeesToken0UsdContract + totalFeesToken1UsdContract;
 
-        expect(totalFeesUsdEstimate).toEqual(totalFeesUsdContract);
+        const err =
+            (Math.abs(totalFeesUsdEstimate - totalFeesUsdContract) / totalFeesUsdContract) * 100;
+        expect(err).toBeLessThan(5);
     });
 });
