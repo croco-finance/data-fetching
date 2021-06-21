@@ -157,7 +157,7 @@ export async function estimate24hUsdFees(
     const tickLowerInstanceCurrent = parseTick(result.data.tickLower[0]);
     const tickUpperInstanceCurrent = parseTick(result.data.tickUpper[0]);
 
-    if (tickLowerInstanceCurrent.idx.gte(tickUpperInstanceCurrent.idx)) {
+    if (tickLowerInstanceCurrent.idx >= tickUpperInstanceCurrent.idx) {
         console.error('Lower tick Idx >= Upper tick Idx');
         return 0;
     }
@@ -166,7 +166,7 @@ export async function estimate24hUsdFees(
     const tickLowerInstanceOld = parseTick(result.data.tickLowerOld[0]);
     const tickUpperInstanceOld = parseTick(result.data.tickUpperOld[0]);
 
-    if (tickLowerInstanceOld.idx.gte(tickUpperInstanceOld.idx)) {
+    if (tickLowerInstanceOld.idx >= tickUpperInstanceOld.idx) {
         console.error('Old lower tick Idx >= Old upper tick Idx');
         return 0;
     }
@@ -175,7 +175,7 @@ export async function estimate24hUsdFees(
     let [feeGrowthInside0X128, feeGrowthInside1X128] = getFeeGrowthInside(
         tickLowerInstanceCurrent,
         tickUpperInstanceCurrent,
-        BigNumber.from(poolDataCurrent.tick),
+        Number(poolDataCurrent.tick),
         BigNumber.from(poolDataCurrent.feeGrowthGlobal0X128),
         BigNumber.from(poolDataCurrent.feeGrowthGlobal1X128),
     );
@@ -183,7 +183,7 @@ export async function estimate24hUsdFees(
     let [feeGrowthInside0LastX128, feeGrowthInside1LastX128] = getFeeGrowthInside(
         tickLowerInstanceOld,
         tickUpperInstanceOld,
-        BigNumber.from(poolDataOld.tick),
+        Number(poolDataOld.tick),
         BigNumber.from(poolDataOld.feeGrowthGlobal0X128),
         BigNumber.from(poolDataOld.feeGrowthGlobal1X128),
     );

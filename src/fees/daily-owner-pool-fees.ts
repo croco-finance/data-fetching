@@ -84,7 +84,7 @@ function buildQuery(
 
 function parseTickDayData(tickDayData: any): Tick {
     return {
-        idx: BigNumber.from(tickDayData.tick.tickIdx),
+        idx: Number(tickDayData.tick.tickIdx),
         feeGrowthOutside0X128: BigNumber.from(tickDayData.feeGrowthOutside0X128),
         feeGrowthOutside1X128: BigNumber.from(tickDayData.feeGrowthOutside1X128),
     };
@@ -92,7 +92,7 @@ function parseTickDayData(tickDayData: any): Tick {
 
 function parseTick(tick: any): Tick {
     return {
-        idx: BigNumber.from(tick.tickIdx),
+        idx: Number(tick.tickIdx),
         feeGrowthOutside0X128: BigNumber.from(tick.feeGrowthOutside0X128),
         feeGrowthOutside1X128: BigNumber.from(tick.feeGrowthOutside1X128),
     };
@@ -156,7 +156,7 @@ function computeFees(data: any, positions: any, positionSnaps: any): Fees {
             let [feeGrowthInside0X128, feeGrowthInside1X128] = getFeeGrowthInside(
                 lowerTickDayData,
                 upperTickDayData,
-                BigNumber.from(poolDayData.tick),
+                Number(poolDayData.tick),
                 BigNumber.from(poolDayData.feeGrowthGlobal0X128),
                 BigNumber.from(poolDayData.feeGrowthGlobal1X128),
             );

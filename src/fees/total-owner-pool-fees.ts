@@ -7,7 +7,7 @@ import { TokenFees } from './daily-owner-pool-fees';
 const Q128 = BigNumber.from('0x100000000000000000000000000000000');
 
 export interface Tick {
-    idx: BigNumber;
+    idx: number;
     feeGrowthOutside0X128: BigNumber;
     feeGrowthOutside1X128: BigNumber;
 }
@@ -21,12 +21,12 @@ const POSITIONS_QUERY = gql`
                 feeGrowthGlobal1X128
             }
             tickLower {
-                idx: tickIdx
+                tickIdx
                 feeGrowthOutside0X128
                 feeGrowthOutside1X128
             }
             tickUpper {
-                idx: tickIdx
+                tickIdx
                 feeGrowthOutside0X128
                 feeGrowthOutside1X128
             }
@@ -39,7 +39,7 @@ const POSITIONS_QUERY = gql`
 
 export function parseTick(tick: any): Tick {
     return {
-        idx: BigNumber.from(tick.idx),
+        idx: Number(tick.tickIdx),
         feeGrowthOutside0X128: BigNumber.from(tick.feeGrowthOutside0X128),
         feeGrowthOutside1X128: BigNumber.from(tick.feeGrowthOutside1X128),
     };
@@ -49,14 +49,14 @@ export function parseTick(tick: any): Tick {
 export function getFeeGrowthInside(
     tickLower: Tick,
     tickUpper: Tick,
-    tickCurrentId: BigNumber,
+    tickCurrentId: Number,
     feeGrowthGlobal0X128: BigNumber,
     feeGrowthGlobal1X128: BigNumber,
 ): [BigNumber, BigNumber] {
     // calculate fee growth below
     let feeGrowthBelow0X128: BigNumber;
     let feeGrowthBelow1X128: BigNumber;
-    if (tickCurrentId.gte(tickLower.idx)) {
+    if (tickCurrentId >= tickLower.idx) {
         feeGrowthBelow0X128 = tickLower.feeGrowthOutside0X128;
         feeGrowthBelow1X128 = tickLower.feeGrowthOutside1X128;
     } else {
@@ -67,7 +67,7 @@ export function getFeeGrowthInside(
     // calculate fee growth above
     let feeGrowthAbove0X128: BigNumber;
     let feeGrowthAbove1X128: BigNumber;
-    if (tickCurrentId.lt(tickUpper.idx)) {
+    if (tickCurrentId < tickUpper.idx) {
         feeGrowthAbove0X128 = tickUpper.feeGrowthOutside0X128;
         feeGrowthAbove1X128 = tickUpper.feeGrowthOutside1X128;
     } else {
@@ -116,7 +116,7 @@ export async function getTotalOwnerPoolFees(owner: string, pool: string): Promis
         let [feeGrowthInside0X128, feeGrowthInside1X128] = getFeeGrowthInside(
             parseTick(position.tickLower),
             parseTick(position.tickUpper),
-            BigNumber.from(position.pool.tick),
+            Number(position.pool.tick),
             BigNumber.from(position.pool.feeGrowthGlobal0X128),
             BigNumber.from(position.pool.feeGrowthGlobal1X128),
         );
