@@ -1,24 +1,43 @@
 import { client } from './apollo/client';
 import { gql } from '@apollo/client/core';
-import { BigNumber } from 'ethers';
-import { getFeeGrowthInside, getTotalPositionFees, parseTick } from './fees/total-owner-pool-fees';
-import { Positions } from './interfaces/positions-overview';
+import { PositionInOverview } from './interfaces/positions-overview';
 
 const POSITIONS_QUERY = gql`
     query positions($owners: [String]) {
+        bundle(id: "1") {
+            ethPriceUSD
+        }
         positions(where: { owner_in: $owners }) {
+            id
+            owner
             pool {
+                id
+                token0 {
+                    id
+                    symbol
+                    decimals
+                    derivedETH
+                }
+                token1 {
+                    id
+                    symbol
+                    decimals
+                    derivedETH
+                }
+                liquidity
+                sqrtPrice
                 tick
+                feeTier
                 feeGrowthGlobal0X128
                 feeGrowthGlobal1X128
             }
             tickLower {
-                idx: tickIdx
+                tickIdx
                 feeGrowthOutside0X128
                 feeGrowthOutside1X128
             }
             tickUpper {
-                idx: tickIdx
+                tickIdx
                 feeGrowthOutside0X128
                 feeGrowthOutside1X128
             }
@@ -35,8 +54,8 @@ const POSITIONS_QUERY = gql`
  * Returns data about all positions for given owner addresses
  * @param owners an array of owner addresses
  */
-export async function getPositions(owners: string[]): Promise<Positions> {
-    const positions: Positions = {};
+export async function getPositions(owners: string[]): Promise<PositionInOverview[]> {
+    const positions: PositionInOverview[] = [];
 
     const result = await client.query({
         query: POSITIONS_QUERY,
@@ -45,26 +64,11 @@ export async function getPositions(owners: string[]): Promise<Positions> {
         },
     });
 
-    for (const position of result.data.positions) {
-        let [feeGrowthInside0X128, feeGrowthInside1X128] = getFeeGrowthInside(
-            parseTick(position.tickLower),
-            parseTick(position.tickUpper),
-            BigNumber.from(position.pool.tick),
-            BigNumber.from(position.pool.feeGrowthGlobal0X128),
-            BigNumber.from(position.pool.feeGrowthGlobal1X128),
-        );
-        let fees = getTotalPositionFees(
-            feeGrowthInside0X128,
-            feeGrowthInside1X128,
-            BigNumber.from(position.feeGrowthInside0LastX128),
-            BigNumber.from(position.feeGrowthInside1LastX128),
-            BigNumber.from(position.liquidity),
-        );
+    const ethPrice = Number(result.data.bundle.ethPriceUSD);
 
-        console.log(fees);
+    for (const positionData of result.data.positions) {
+        positions.push(new PositionInOverview(positionData, ethPrice));
     }
-
-    // TODO
 
     return positions;
 }
