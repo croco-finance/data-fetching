@@ -1,7 +1,7 @@
 import { abi as NFTPositionManagerABI } from '@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json';
 import { BigNumber, ethers } from 'ethers';
-import { TokenFees } from './daily-owner-pool-fees';
 import * as dotenv from 'dotenv';
+import { TokenFees } from './total-owner-pool-fees';
 
 dotenv.config();
 

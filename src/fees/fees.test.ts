@@ -1,7 +1,7 @@
-import { getTotalOwnerPoolFees } from './total-owner-pool-fees';
+import { getTotalOwnerPoolFees, TokenFees } from './total-owner-pool-fees';
 import { BigNumber } from 'ethers';
 import { getPositionFees } from './total-position-fees-reference';
-import { getDailyOwnerPoolFees, TokenFees } from './daily-owner-pool-fees';
+import { getDailyPositionFees } from './daily-position-fees';
 import { getLatestIndexedBlock } from './utils';
 import dayjs from 'dayjs';
 import { estimate24hUsdFees, FEE_ESTIMATE_QUERY, getLiquidity } from './fee-estimation';
@@ -53,17 +53,15 @@ describe('Test fees and fee estimate', () => {
     });
 
     test('A sum of daily fees equals total fees from contract call', async () => {
-        const poolUserDailyFees = await getDailyOwnerPoolFees(POSITION_OWNER, POSITION_POOL, 365);
-
-        const positionDailyFees = poolUserDailyFees[POSITION_ID.toString()];
+        const dailyPositionFees = await getDailyPositionFees(POSITION_ID, 365);
 
         const positionDailyFeesSum: TokenFees = {
             amount0: BigNumber.from(0),
             amount1: BigNumber.from(0),
         };
 
-        for (let timestampKey in positionDailyFees) {
-            const dayFees = positionDailyFees[timestampKey];
+        for (let timestampKey in dailyPositionFees) {
+            const dayFees = dailyPositionFees[timestampKey];
             positionDailyFeesSum.amount0 = positionDailyFeesSum.amount0.add(dayFees.amount0);
             positionDailyFeesSum.amount1 = positionDailyFeesSum.amount1.add(dayFees.amount1);
         }
