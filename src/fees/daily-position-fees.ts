@@ -10,7 +10,7 @@ import {
     TokenFees,
 } from './total-owner-pool-fees';
 
-const TICK_IDS_QUERY = gql`
+const POSITION_AND_SNAPS = gql`
     query tickIds($positionId: String) {
         position(id: $positionId) {
             id
@@ -44,7 +44,7 @@ const TICK_IDS_QUERY = gql`
     }
 `;
 
-interface PositionFees {
+export interface DailyFees {
     // key is timestamp
     [key: number]: TokenFees;
 }
@@ -81,8 +81,8 @@ function parseTickDayData(tickDayData: any): Tick {
     };
 }
 
-function computeFees(data: any, position: any, positionSnaps: any): PositionFees {
-    const positionFees: PositionFees = {};
+export function computeFees(data: any, position: any, positionSnaps: any): DailyFees {
+    const positionFees: DailyFees = {};
 
     const lowerTickDayDatas =
         data['t' + position.pool.id + '_' + position.tickLower.tickIdx.replace('-', '_')];
@@ -147,10 +147,10 @@ function computeFees(data: any, position: any, positionSnaps: any): PositionFees
 export async function getDailyPositionFees(
     positionId: string,
     numDays: number,
-): Promise<PositionFees> {
-    // 1. get relevant ticks from position
+): Promise<DailyFees> {
+    // 1. get position and snaps
     let result = await client.query({
-        query: TICK_IDS_QUERY,
+        query: POSITION_AND_SNAPS,
         variables: {
             positionId,
         },

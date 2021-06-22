@@ -73,8 +73,8 @@ export async function getPositions(owners: string[]): Promise<PositionInOverview
     return positions;
 }
 
-(async function main() {
-    const owners = ['0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1'];
-    const positions = await getPositions(owners);
-    console.log(positions);
-})().catch(error => console.error(error));
+// (async function main() {
+//     const owners = ['0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1'];
+//     const positions = await getPositions(owners);
+//     console.log(positions);
+// })().catch(error => console.error(error));

@@ -16,9 +16,9 @@ export class PositionInOverview extends Position {
     readonly liquidityUSD: number;
 
     // Sum of all uncollected fees
-    readonly unclaimedFeesToken0: number;
-    readonly unclaimedFeesToken1: number;
-    readonly unclaimedFeesUSD: number;
+    readonly uncollectedFeesToken0: number;
+    readonly uncollectedFeesToken1: number;
+    readonly uncollectedFeesUSD: number;
 
     constructor(positionData: any, ethPrice: number) {
         const poolData = positionData.pool;
@@ -62,10 +62,10 @@ export class PositionInOverview extends Position {
             BigNumber.from(positionData.feeGrowthInside1LastX128),
             BigNumber.from(positionData.liquidity),
         );
-        this.unclaimedFeesToken0 = Number(formatUnits(fees.amount0, this.pool.token0.decimals));
-        this.unclaimedFeesToken1 = Number(formatUnits(fees.amount1, this.pool.token1.decimals));
-        this.unclaimedFeesUSD =
-            this.unclaimedFeesToken0 * this.token0priceUSD +
-            this.unclaimedFeesToken1 * this.token1priceUSD;
+        this.uncollectedFeesToken0 = Number(formatUnits(fees.amount0, this.pool.token0.decimals));
+        this.uncollectedFeesToken1 = Number(formatUnits(fees.amount1, this.pool.token1.decimals));
+        this.uncollectedFeesUSD =
+            this.uncollectedFeesToken0 * this.token0priceUSD +
+            this.uncollectedFeesToken1 * this.token1priceUSD;
     }
 }

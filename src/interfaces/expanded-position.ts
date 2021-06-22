@@ -1,14 +1,7 @@
-interface DailyFees {
-    // key is timestamp of the beginning of the day
-    [key: number]: {
-        feesToken0: number;
-        feesToken1: number;
-    };
-}
+import { DailyFees } from '../fees/daily-position-fees';
 
 interface Transaction {
     id: string; // tx hash
-    blockNumber: number;
     timestamp: number;
     txCostETH: number;
     ethPriceUSD: number | undefined; // price of ETH at the time this transaction happened
@@ -37,11 +30,11 @@ interface Snapshot {
     transaction: Transaction;
 }
 
-interface ExpandedPositionInfo {
+export interface ExpandedPositionInfo {
     // Sum of all collected fees
     collectedFeesToken0: number;
     collectedFeesToken1: number;
 
     snapshots: Snapshot[];
-    dailyFees: DailyFees | undefined;
+    dailyFees: DailyFees;
 }
