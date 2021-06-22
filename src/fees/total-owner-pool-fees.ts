@@ -1,10 +1,14 @@
 import { gql } from '@apollo/client/core';
 import { client } from '../apollo/client';
 import { BigNumber } from 'ethers';
-import { TokenFees } from './daily-owner-pool-fees';
 
 // See https://docs.uniswap.org/reference/core/libraries/FixedPoint128 for details
 const Q128 = BigNumber.from('0x100000000000000000000000000000000');
+
+export interface TokenFees {
+    amount0: BigNumber;
+    amount1: BigNumber;
+}
 
 export interface Tick {
     idx: number;

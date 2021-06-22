@@ -2,7 +2,13 @@ import { gql } from '@apollo/client/core';
 import { client } from '../apollo/client';
 import dayjs from 'dayjs';
 import { BigNumber } from 'ethers';
-import { getFeeGrowthInside, getTotalPositionFees, Tick } from './total-owner-pool-fees';
+import {
+    getFeeGrowthInside,
+    getTotalPositionFees,
+    parseTick,
+    Tick,
+    TokenFees,
+} from './total-owner-pool-fees';
 
 const TICK_IDS_QUERY = gql`
     query tickIds($owner: String, $pool: String) {
@@ -37,11 +43,6 @@ const TICK_IDS_QUERY = gql`
         }
     }
 `;
-
-export interface TokenFees {
-    amount0: BigNumber;
-    amount1: BigNumber;
-}
 
 interface PositionFees {
     // key is timestamp
@@ -87,14 +88,6 @@ function parseTickDayData(tickDayData: any): Tick {
         idx: Number(tickDayData.tick.tickIdx),
         feeGrowthOutside0X128: BigNumber.from(tickDayData.feeGrowthOutside0X128),
         feeGrowthOutside1X128: BigNumber.from(tickDayData.feeGrowthOutside1X128),
-    };
-}
-
-function parseTick(tick: any): Tick {
-    return {
-        idx: Number(tick.tickIdx),
-        feeGrowthOutside0X128: BigNumber.from(tick.feeGrowthOutside0X128),
-        feeGrowthOutside1X128: BigNumber.from(tick.feeGrowthOutside1X128),
     };
 }
 
