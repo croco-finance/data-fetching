@@ -15,12 +15,14 @@ const POSITIONS_QUERY = gql`
                 token0 {
                     id
                     symbol
+                    name
                     decimals
                     derivedETH
                 }
                 token1 {
                     id
                     symbol
+                    name
                     decimals
                     derivedETH
                 }

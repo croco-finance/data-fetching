@@ -24,8 +24,20 @@ export class PositionInOverview extends Position {
         const poolData = positionData.pool;
         super({
             pool: new Pool(
-                new Token(1, poolData.token0.id, parseInt(poolData.token0.decimals)),
-                new Token(1, poolData.token1.id, parseInt(poolData.token1.decimals)),
+                new Token(
+                    1,
+                    poolData.token0.id,
+                    parseInt(poolData.token0.decimals),
+                    poolData.token0.symbol,
+                    poolData.token0.name,
+                ),
+                new Token(
+                    1,
+                    poolData.token1.id,
+                    parseInt(poolData.token1.decimals),
+                    poolData.token1.symbol,
+                    poolData.token1.name,
+                ),
                 parseInt(poolData.feeTier),
                 parseInt(poolData.sqrtPrice),
                 parseInt(poolData.liquidity),
