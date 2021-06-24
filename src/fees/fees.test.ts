@@ -18,11 +18,6 @@ const POSITION_POOL = '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f';
 const POSITION_CREATION_TIMESTAMP = 1622711721;
 const POSITION_CREATION_BLOCK = 12560689;
 
-// acceptable difference between sum of daily fees and reference
-// Note: the returned values are in the smallest units (e.g. multiplied
-// by 10^18 for WETH) so 1000 is a really small diff
-const ACCEPTABLE_DIFF = BigInt('1000');
-
 describe('Test fees and fee estimate', () => {
     // all the tests pass only if the user owns 1 position with ID 34054
     let latestIndexedBlock: number;
@@ -68,17 +63,21 @@ describe('Test fees and fee estimate', () => {
 
         // Note: There will always be imprecision in the daily fees because the pool
         // data are saved once a day and not at the time of snapshots
-        const token0Diff = positionDailyFeesSum.amount0
+        const token0err = positionDailyFeesSum.amount0
             .sub(totalFeesFromContract.amount0)
+            .mul(100)
+            .div(totalFeesFromContract.amount0)
             .abs()
-            .toBigInt();
-        const token1Diff = positionDailyFeesSum.amount1
+            .toNumber();
+        const token1err = positionDailyFeesSum.amount1
             .sub(totalFeesFromContract.amount1)
+            .mul(100)
+            .div(totalFeesFromContract.amount1)
             .abs()
-            .toBigInt();
+            .toNumber();
 
-        expect(token0Diff).toBeLessThan(ACCEPTABLE_DIFF);
-        expect(token1Diff).toBeLessThan(ACCEPTABLE_DIFF);
+        expect(token0err).toBeLessThan(3);
+        expect(token1err).toBeLessThan(3);
     });
 
     test('The value of liquidity has less then 1% error compared to the reference after a conversion from USD to the inner contract format', async () => {
