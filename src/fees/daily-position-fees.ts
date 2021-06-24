@@ -60,7 +60,16 @@ function buildQuery(pool: string, minTimestamp: number, relevantTickIds: string[
     for (const tickId of relevantTickIds) {
         const processedId = tickId.replace('#', '_').replace('-', '_');
         query += `
-        t${processedId}: tickDayDatas(where: {tick: "${tickId}", date_gt: ${minTimestamp}}, orderBy: date, orderDirection: asc) {
+        t${processedId}: tickDayDatas(where: {tick: "${tickId}", date_gt: ${minTimestamp}}, orderBy: date, orderDirection: desc) {
+            date
+            tick {
+                tickIdx
+            }
+            feeGrowthOutside0X128
+            feeGrowthOutside1X128
+        }`;
+        query += `
+        t${processedId}_first_smaller: tickDayDatas(first: 1, where: {tick: "${tickId}", date_lte: ${minTimestamp}}, orderBy: date, orderDirection: desc) {
             date
             tick {
                 tickIdx
@@ -84,39 +93,31 @@ function parseTickDayData(tickDayData: any): Tick {
 export function computeFees(data: any, position: any, positionSnaps: any): DailyFees {
     const positionFees: DailyFees = {};
 
-    const lowerTickDayDatas =
-        data['t' + position.pool.id + '_' + position.tickLower.tickIdx.replace('-', '_')];
-    const upperTickDayDatas =
-        data['t' + position.pool.id + '_' + position.tickUpper.tickIdx.replace('-', '_')];
+    // 1. Get tickDayDatas and merge first smaller with the rest
+    let processedId = 't' + position.pool.id + '_' + position.tickLower.tickIdx.replace('-', '_');
+    const lowerTickDayDatas = data[processedId].concat(data[processedId + '_first_smaller']);
 
-    // 4. Iterate over pool day data
+    processedId = 't' + position.pool.id + '_' + position.tickUpper.tickIdx.replace('-', '_');
+    const upperTickDayDatas = data[processedId].concat(data[processedId + '_first_smaller']);
+
+    // 2. Iterate over pool day data
     let feeGrowthInside0LastX128 = BigNumber.from(positionSnaps[0].feeGrowthInside0LastX128);
     let feeGrowthInside1LastX128 = BigNumber.from(positionSnaps[0].feeGrowthInside1LastX128);
     let currentSnapIndex = 0;
     for (const poolDayData of data.poolDayDatas) {
+        // 3. Get the first tickDayData whose date is smaller or equal to current poolDayData
         const lowerTickDayDataRaw = lowerTickDayDatas.find(
-            (tickSnap: { date: any }) => tickSnap.date == poolDayData.date,
+            (tickDayData: { date: any }) => tickDayData.date <= poolDayData.date,
         );
+
         const upperTickDayDataRaw = upperTickDayDatas.find(
-            (tickSnap: { date: any }) => tickSnap.date == poolDayData.date,
+            (tickDayData: { date: any }) => tickDayData.date <= poolDayData.date,
         );
 
-        let lowerTickDayData: Tick;
-        let upperTickDayData: Tick;
+        let lowerTickDayData = parseTickDayData(lowerTickDayDataRaw);
+        let upperTickDayData = parseTickDayData(upperTickDayDataRaw);
 
-        if (lowerTickDayDataRaw === undefined) {
-            lowerTickDayData = parseTick(position.tickLower);
-        } else {
-            lowerTickDayData = parseTickDayData(lowerTickDayDataRaw);
-        }
-
-        if (upperTickDayDataRaw === undefined) {
-            upperTickDayData = parseTick(position.tickUpper);
-        } else {
-            upperTickDayData = parseTickDayData(upperTickDayDataRaw);
-        }
-
-        // 5. increment snap index if necessary
+        // 4. increment snap index if necessary
         if (
             currentSnapIndex < positionSnaps.length - 1 &&
             positionSnaps[currentSnapIndex + 1].timestamp <= poolDayData.date
