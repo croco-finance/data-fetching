@@ -2,13 +2,7 @@ import { gql } from '@apollo/client/core';
 import { client } from '../apollo/client';
 import dayjs from 'dayjs';
 import { BigNumber } from 'ethers';
-import {
-    getFeeGrowthInside,
-    getTotalPositionFees,
-    parseTick,
-    Tick,
-    TokenFees,
-} from './total-owner-pool-fees';
+import { getFeeGrowthInside, getTotalPositionFees, Tick, TokenFees } from './total-owner-pool-fees';
 
 const POSITION_AND_SNAPS = gql`
     query tickIds($positionId: String) {
