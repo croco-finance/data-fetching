@@ -2,6 +2,8 @@ import { gql } from '@apollo/client/core';
 import { client } from '../apollo/client';
 import { Position } from '@uniswap/v3-sdk';
 import { getPool } from '../sdk-utils';
+import { BigNumber } from 'ethers';
+import { CurrencyAmount, Token } from '@uniswap/sdk-core';
 
 const TOKEN_PRICES_QUERY = gql`
     query tokenPrices($pool: String, $block: Int) {
@@ -35,10 +37,23 @@ export async function getPoolTokenPrices(pool: string, block: number): Promise<[
     return [token0Price, token1Price];
 }
 
+export interface PositionInTest {
+    pool: string;
+    owner: string;
+    liquidity: BigNumber;
+    amount0: CurrencyAmount<Token>;
+    amount1: CurrencyAmount<Token>;
+    tickLower: number;
+    tickUpper: number;
+    creationTimestamp: number;
+    creationBlock: number;
+}
+
 const POSITION_QUERY = gql`
     query positions($id: String) {
         position(id: $id) {
             pool {
+                id
                 token0 {
                     id
                     decimals
@@ -58,24 +73,42 @@ const POSITION_QUERY = gql`
             tickUpper {
                 tickIdx
             }
+            owner
             liquidity
             collectedFeesToken0
             collectedFeesToken1
+            transaction {
+                timestamp
+                blockNumber
+            }
         }
     }
 `;
 
-export async function fetchPosition(id: string): Promise<Position> {
+export async function loadPosition(id: string): Promise<PositionInTest> {
     const result = await client.query({
         query: POSITION_QUERY,
         variables: {
             id,
         },
     });
-    return new Position({
-        pool: getPool(result.data.position.pool),
-        tickLower: Number(result.data.position.tickLower.tickIdx),
-        tickUpper: Number(result.data.position.tickUpper.tickIdx),
-        liquidity: result.data.position.liquidity,
+    const rawPosition = result.data.position;
+    const position = new Position({
+        pool: getPool(rawPosition.pool),
+        tickLower: Number(rawPosition.tickLower.tickIdx),
+        tickUpper: Number(rawPosition.tickUpper.tickIdx),
+        liquidity: rawPosition.liquidity,
     });
+
+    return {
+        pool: rawPosition.pool.id,
+        owner: rawPosition.owner,
+        liquidity: BigNumber.from(rawPosition.liquidity),
+        amount0: position.amount0,
+        amount1: position.amount1,
+        tickLower: position.tickLower,
+        tickUpper: position.tickUpper,
+        creationTimestamp: Number(rawPosition.transaction.timestamp),
+        creationBlock: Number(rawPosition.transaction.blockNumber),
+    };
 }

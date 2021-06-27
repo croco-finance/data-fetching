@@ -7,42 +7,37 @@ import dayjs from 'dayjs';
 import { estimate24hUsdFees, FEE_ESTIMATE_QUERY, getLiquidity } from './fee-estimation';
 import { formatUnits } from 'ethers/lib/utils';
 import { client } from '../apollo/client';
-import { fetchPosition, getPoolTokenPrices } from './test-utils';
-import { Position } from '@uniswap/v3-sdk';
+import { getPoolTokenPrices, loadPosition, PositionInTest } from './test-utils';
 
 jest.setTimeout(30000);
 
-const POSITION_OWNER = '0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1';
 const POSITION_ID = '34054';
-const POSITION_POOL = '0x151ccb92bc1ed5c6d0f9adb5cec4763ceb66ac7f';
-const POSITION_CREATION_TIMESTAMP = 1622711721;
-const POSITION_CREATION_BLOCK = 12560689;
 
 describe('Test fees and fee estimate', () => {
     // all the tests pass only if the user owns 1 position with ID 34054
     let latestIndexedBlock: number;
     let totalFeesFromContract: TokenFees;
-    let position: Position;
+    let position: PositionInTest;
     let token0Price: number;
     let token1Price: number;
     let positionLiquidityUsd: number;
 
     beforeAll(async function () {
         latestIndexedBlock = await getLatestIndexedBlock();
+        position = await loadPosition(POSITION_ID);
         totalFeesFromContract = await getPositionFees(
             POSITION_ID,
-            POSITION_OWNER,
+            position.owner,
             latestIndexedBlock,
         );
-        position = await fetchPosition(POSITION_ID);
-        [token0Price, token1Price] = await getPoolTokenPrices(POSITION_POOL, latestIndexedBlock);
+        [token0Price, token1Price] = await getPoolTokenPrices(position.pool, latestIndexedBlock);
         positionLiquidityUsd =
             Number(position.amount0.toSignificant()) * token0Price +
             Number(position.amount1.toSignificant()) * token1Price;
     });
 
     test('Total fees computed from subgraph data are equal to the ones from contract call', async () => {
-        const totalFeesFromSubgraph = await getTotalOwnerPoolFees(POSITION_OWNER, POSITION_POOL);
+        const totalFeesFromSubgraph = await getTotalOwnerPoolFees(position.owner, position.pool);
 
         expect(totalFeesFromSubgraph).toEqual(totalFeesFromContract);
     });
@@ -87,10 +82,10 @@ describe('Test fees and fee estimate', () => {
         let result = await client.query({
             query: FEE_ESTIMATE_QUERY,
             variables: {
-                pool: POSITION_POOL,
+                pool: position.pool,
                 tickLower: position.tickLower,
                 tickUpper: position.tickUpper,
-                block: POSITION_CREATION_BLOCK,
+                block: position.creationBlock,
             },
         });
 
@@ -114,10 +109,10 @@ describe('Test fees and fee estimate', () => {
     });
 
     test('24h fee estimate multiplied by the amount of days the position exists has less then a 5% error compared to the total position fees', async () => {
-        const numDays = (dayjs().unix() - POSITION_CREATION_TIMESTAMP) / 86400;
+        const numDays = (dayjs().unix() - position.creationTimestamp) / 86400;
 
         const feesUsd = await estimate24hUsdFees(
-            POSITION_POOL,
+            position.pool,
             positionLiquidityUsd,
             position.tickLower,
             position.tickUpper,
