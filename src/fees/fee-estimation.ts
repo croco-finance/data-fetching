@@ -36,7 +36,7 @@ export const FEE_ESTIMATE_QUERY = gql`
             orderBy: tickIdx
             orderDirection: asc
         ) {
-            idx: tickIdx
+            tickIdx
             feeGrowthOutside0X128
             feeGrowthOutside1X128
         }
@@ -46,7 +46,7 @@ export const FEE_ESTIMATE_QUERY = gql`
             orderBy: tickIdx
             orderDirection: desc
         ) {
-            idx: tickIdx
+            tickIdx
             feeGrowthOutside0X128
             feeGrowthOutside1X128
         }
@@ -75,7 +75,7 @@ export const FEE_ESTIMATE_QUERY = gql`
             orderDirection: asc
             block: { number: $block }
         ) {
-            idx: tickIdx
+            tickIdx
             feeGrowthOutside0X128
             feeGrowthOutside1X128
         }
@@ -86,7 +86,7 @@ export const FEE_ESTIMATE_QUERY = gql`
             orderDirection: desc
             block: { number: $block }
         ) {
-            idx: tickIdx
+            tickIdx
             feeGrowthOutside0X128
             feeGrowthOutside1X128
         }
