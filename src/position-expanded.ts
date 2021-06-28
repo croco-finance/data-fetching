@@ -79,6 +79,15 @@ function buildQuery(
             feeGrowthOutside0X128
             feeGrowthOutside1X128
         }`;
+        query += `
+        t${processedId}_first_smaller: tickDayDatas(first: 1, where: {tick: "${tickId}", date_lte: ${minTimestamp}}, orderBy: date, orderDirection: desc) {
+            date
+            tick {
+                tickIdx
+            }
+            feeGrowthOutside0X128
+            feeGrowthOutside1X128
+        }`;
     }
     query += '}';
     return query;
