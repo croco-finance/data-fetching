@@ -1,4 +1,3 @@
-import { DailyFees } from '../fees/daily-position-fees';
 import { CurrencyAmount, Token } from '@uniswap/sdk-core';
 
 export interface Transaction {
@@ -29,11 +28,17 @@ export interface Snapshot {
     transaction: Transaction;
 }
 
+export type FeesChartEntry = {
+    date: number;
+    feesToken0: number;
+    feesToken1: number;
+};
+
 export interface ExpandedPositionInfo {
     // Sum of all collected fees
     collectedFeesToken0: number;
     collectedFeesToken1: number;
 
-    dailyFees: DailyFees;
+    dailyFees: FeesChartEntry[];
     snapshots: Snapshot[];
 }

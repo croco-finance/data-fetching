@@ -1,11 +1,13 @@
 import { PositionInOverview } from './interfaces/positions-overview';
 import { gql } from '@apollo/client/core';
 import { client } from './apollo/client';
-import { computeFees } from './fees/daily-position-fees';
+import { computeFees, DailyFees } from './fees/daily-position-fees';
 import dayjs from 'dayjs';
 import { getPositions } from './positions-overview';
-import { ExpandedPositionInfo, Snapshot } from './interfaces/expanded-position';
+import { ExpandedPositionInfo, FeesChartEntry, Snapshot } from './interfaces/expanded-position';
 import { Position } from '@uniswap/v3-sdk';
+import { TokenFees } from './fees/total-owner-pool-fees';
+import { formatUnits } from 'ethers/lib/utils';
 
 const POSITION_AND_SNAPS = gql`
     query positionAndSnaps($positionId: String) {
@@ -93,6 +95,23 @@ function buildQuery(
     return query;
 }
 
+function dailyFeesToChartFormat(
+    dailyFees: DailyFees,
+    decimals0: number,
+    decimals1: number,
+): FeesChartEntry[] {
+    const entryArray: FeesChartEntry[] = [];
+    for (let timestamp in dailyFees) {
+        let tokenFees: TokenFees = dailyFees[timestamp];
+        entryArray.push({
+            date: Number(timestamp),
+            feesToken0: Number(formatUnits(tokenFees.amount0, decimals0)),
+            feesToken1: Number(formatUnits(tokenFees.amount1, decimals1)),
+        });
+    }
+    return entryArray;
+}
+
 async function getExpandedPosition(
     positionInOverview: PositionInOverview,
 ): Promise<ExpandedPositionInfo> {
@@ -165,7 +184,11 @@ async function getExpandedPosition(
     return {
         collectedFeesToken0: snapshots[snapshots.length - 1].collectedFeesToken0,
         collectedFeesToken1: snapshots[snapshots.length - 1].collectedFeesToken1,
-        dailyFees,
+        dailyFees: dailyFeesToChartFormat(
+            dailyFees,
+            positionInOverview.pool.token0.decimals,
+            positionInOverview.pool.token1.decimals,
+        ),
         snapshots,
     };
 }
