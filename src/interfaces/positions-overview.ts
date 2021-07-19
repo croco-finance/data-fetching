@@ -2,7 +2,11 @@
 
 import { Token } from '@uniswap/sdk-core';
 import { Pool, Position } from '@uniswap/v3-sdk';
-import { getFeeGrowthInside, getTotalPositionFees, parseTick } from '../fees/total-owner-pool-fees';
+import {
+    getFeeGrowthInside,
+    getTotalPositionFees,
+    parseTick,
+} from '../fees/total-owner-pool-fees';
 import { BigNumber } from 'ethers';
 import { formatUnits } from 'ethers/lib/utils';
 
@@ -39,8 +43,8 @@ export class PositionInOverview extends Position {
                     poolData.token1.name,
                 ),
                 parseInt(poolData.feeTier),
-                parseInt(poolData.sqrtPrice),
-                parseInt(poolData.liquidity),
+                poolData.sqrtPrice,
+                poolData.liquidity,
                 parseInt(poolData.tick),
             ),
             liquidity: positionData.liquidity,

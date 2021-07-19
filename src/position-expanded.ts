@@ -4,8 +4,12 @@ import { client } from './apollo/client';
 import { computeFees, DailyFees } from './fees/daily-position-fees';
 import dayjs from 'dayjs';
 import { getPositions } from './positions-overview';
-import { ExpandedPositionInfo, FeesChartEntry, Snapshot } from './interfaces/expanded-position';
-import { Position } from '@uniswap/v3-sdk';
+import {
+    ExpandedPositionInfo,
+    FeesChartEntry,
+    Snapshot,
+} from './interfaces/expanded-position';
+import { Pool, Position } from '@uniswap/v3-sdk';
 import { TokenFees } from './fees/total-owner-pool-fees';
 import { formatUnits } from 'ethers/lib/utils';
 
@@ -68,6 +72,11 @@ function buildQuery(
         query += `
         b${block}: bundle(id: "1", block: {number: ${block}}) {
             ethPriceUSD
+        }
+        s${block}: pool(id: "${pool}", block: {number: ${block}}) {
+            liquidity
+            sqrtPrice
+            tick
         }`;
     }
     for (const tickId of relevantTickIds) {
@@ -157,7 +166,14 @@ async function getExpandedPosition(
     let snapshots: Snapshot[] = [];
     for (const snap of rawSnaps) {
         const snapPosition = new Position({
-            pool: positionInOverview.pool,
+            pool: new Pool(
+                positionInOverview.pool.token0,
+                positionInOverview.pool.token1,
+                positionInOverview.pool.fee,
+                result.data['s' + snap.blockNumber].sqrtPrice,
+                result.data['s' + snap.blockNumber].liquidity,
+                parseInt(result.data['s' + snap.blockNumber].tick),
+            ),
             liquidity: snap.liquidity,
             tickLower: positionInOverview.tickLower,
             tickUpper: positionInOverview.tickUpper,
@@ -197,5 +213,4 @@ async function getExpandedPosition(
     const owners = ['0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1'];
     const positions = await getPositions(owners);
     const expandedPosition = await getExpandedPosition(positions[0]);
-    console.log(expandedPosition);
 })().catch(error => console.error(error));
