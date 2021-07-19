@@ -1,7 +1,7 @@
 import { getTotalOwnerPoolFees, TokenFees } from './total-owner-pool-fees';
 import { BigNumber } from 'ethers';
 import { getPositionFees } from './total-position-fees-reference';
-import { getDailyPositionFees } from './daily-position-fees';
+import { DailyFees, getDailyPositionFees } from './daily-position-fees';
 import { getLatestIndexedBlock } from './utils';
 import dayjs from 'dayjs';
 import { estimate24hUsdFees, FEE_ESTIMATE_QUERY, getLiquidity } from './fee-estimation';
@@ -21,6 +21,7 @@ describe('Test fees and fee estimate', () => {
     let token0Price: number;
     let token1Price: number;
     let positionLiquidityUsd: number;
+    let dailyPositionFees: DailyFees;
 
     beforeAll(async function () {
         latestIndexedBlock = await getLatestIndexedBlock();
@@ -34,6 +35,7 @@ describe('Test fees and fee estimate', () => {
         positionLiquidityUsd =
             Number(position.amount0.toSignificant()) * token0Price +
             Number(position.amount1.toSignificant()) * token1Price;
+        dailyPositionFees = await getDailyPositionFees(POSITION_ID, 365);
     });
 
     test('Total fees computed from subgraph data are equal to the ones from contract call', async () => {
@@ -42,9 +44,15 @@ describe('Test fees and fee estimate', () => {
         expect(totalFeesFromSubgraph).toEqual(totalFeesFromContract);
     });
 
-    test('A sum of daily fees equals total fees from contract call', async () => {
-        const dailyPositionFees = await getDailyPositionFees(POSITION_ID, 365);
+    test('Daily fees are non-negative', async () => {
+        for (let timestampKey in dailyPositionFees) {
+            const dayFees = dailyPositionFees[timestampKey];
+            expect(dayFees.amount0.gte('0')).toBeTruthy();
+            expect(dayFees.amount1.gte('0')).toBeTruthy();
+        }
+    });
 
+    test('A sum of daily fees equals total fees from contract call', async () => {
         const positionDailyFeesSum: TokenFees = {
             amount0: BigNumber.from(0),
             amount1: BigNumber.from(0),
