@@ -8,8 +8,8 @@ export interface Token {
 }
 
 export interface Pool {
-    address: string
-    tokens: Token[]
+    address: string;
+    tokens: Token[];
 }
 
 const POOL_QUERY = gql`
@@ -26,7 +26,7 @@ const POOL_QUERY = gql`
                 derivedETH
             }
         }
-        bundle(id:1) {
+        bundle(id: 1) {
             ethPriceUSD
         }
     }
@@ -62,4 +62,4 @@ async function getPool(address: string): Promise<Pool> {
 (async function main() {
     const pool = await getPool('0xcbcdf9626bc03e24f779434178a73a0b4bad62ed');
     console.log(pool);
-})().catch((error) => console.error(error));
+})().catch(error => console.error(error));

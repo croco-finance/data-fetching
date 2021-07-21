@@ -4,10 +4,10 @@ import dayjs from 'dayjs';
 
 const VOLUME_QUERY = gql`
     query volume($id: String, $numDays: Int) {
-        pool(id: $id){
+        pool(id: $id) {
             feeTier
         }
-        poolDayDatas(where: {pool: $id}, first: $numDays, orderBy: date, orderDirection: desc) {
+        poolDayDatas(where: { pool: $id }, first: $numDays, orderBy: date, orderDirection: desc) {
             date
             volumeUSD
         }
@@ -28,7 +28,7 @@ async function getPool(address: string, numDays: number): Promise<number[]> {
     return poolDayDatas.map((dayData: any) => {
         return {
             time: dayjs.unix(dayData.date).format('YYYY-MM-DD'),
-            value: Math.round(dayData.volumeUSD * pool.feeTier / 10000),
+            value: Math.round((dayData.volumeUSD * pool.feeTier) / 10000),
         };
     });
 }
@@ -36,4 +36,4 @@ async function getPool(address: string, numDays: number): Promise<number[]> {
 (async function main() {
     const fees = await getPool('0xcbcdf9626bc03e24f779434178a73a0b4bad62ed', 7);
     console.log(fees);
-})().catch((error) => console.error(error));
+})().catch(error => console.error(error));

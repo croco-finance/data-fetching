@@ -126,11 +126,14 @@ export function computeFees(data: any, position: any, positionSnaps: any): Daily
             BigNumber.from(poolDayData.feeGrowthGlobal0X128),
             BigNumber.from(poolDayData.feeGrowthGlobal1X128),
         );
-        if (feeGrowthInside0X128.sub(feeGrowthInside0LastX128).lt('0') || feeGrowthInside1X128.sub(feeGrowthInside1LastX128).lt('0')) {
+        if (
+            feeGrowthInside0X128.sub(feeGrowthInside0LastX128).lt('0') ||
+            feeGrowthInside1X128.sub(feeGrowthInside1LastX128).lt('0')
+        ) {
             positionFees[poolDayData.date] = {
                 amount0: BigNumber.from('0'),
-                amount1: BigNumber.from('0')
-            }
+                amount1: BigNumber.from('0'),
+            };
         } else {
             positionFees[poolDayData.date] = getTotalPositionFees(
                 feeGrowthInside0X128,

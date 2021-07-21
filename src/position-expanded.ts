@@ -4,11 +4,7 @@ import { client } from './apollo/client';
 import { computeFees, DailyFees } from './fees/daily-position-fees';
 import dayjs from 'dayjs';
 import { getPositions } from './positions-overview';
-import {
-    ExpandedPositionInfo,
-    FeesChartEntry,
-    Snapshot,
-} from './interfaces/expanded-position';
+import { ExpandedPositionInfo, FeesChartEntry, Snapshot } from './interfaces/expanded-position';
 import { Pool, Position } from '@uniswap/v3-sdk';
 import { TokenFees } from './fees/total-owner-pool-fees';
 import { formatUnits } from 'ethers/lib/utils';
@@ -169,7 +165,7 @@ async function getExpandedPosition(
         // additionalPoolInfo.tick is null when the positionSnapshot is the pool's
         // first snapshot. To avoid "Error: Invariant failed: TICK" error
         // I set current pool info instead of the snap's
-        let pool = positionInOverview.pool
+        let pool = positionInOverview.pool;
         if (additionalPoolInfo.tick !== null) {
             pool = new Pool(
                 positionInOverview.pool.token0,
@@ -178,7 +174,7 @@ async function getExpandedPosition(
                 additionalPoolInfo.sqrtPrice,
                 additionalPoolInfo.liquidity,
                 parseInt(additionalPoolInfo.tick),
-            )
+            );
         }
 
         const snapPosition = new Position({

@@ -43,11 +43,21 @@ describe('Test fees and fee estimate', () => {
         // I am not going to spend time on this for now.
         const totalFeesFromSubgraph = await getTotalOwnerPoolFees(position.owner, position.pool);
 
-        const err0 = totalFeesFromSubgraph.amount0.sub(totalFeesFromContract.amount0).mul(100).div(totalFeesFromContract.amount0).abs().toNumber();
-        const err1 = totalFeesFromSubgraph.amount1.sub(totalFeesFromContract.amount1).mul(100).div(totalFeesFromContract.amount1).abs().toNumber();
+        const err0 = totalFeesFromSubgraph.amount0
+            .sub(totalFeesFromContract.amount0)
+            .mul(100)
+            .div(totalFeesFromContract.amount0)
+            .abs()
+            .toNumber();
+        const err1 = totalFeesFromSubgraph.amount1
+            .sub(totalFeesFromContract.amount1)
+            .mul(100)
+            .div(totalFeesFromContract.amount1)
+            .abs()
+            .toNumber();
 
-        expect(err0).toBeLessThan(0.1)
-        expect(err1).toBeLessThan(0.1)
+        expect(err0).toBeLessThan(0.1);
+        expect(err1).toBeLessThan(0.1);
     });
 
     test('Daily fees are non-negative', async () => {

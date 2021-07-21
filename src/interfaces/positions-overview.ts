@@ -2,11 +2,7 @@
 
 import { Token } from '@uniswap/sdk-core';
 import { Pool, Position } from '@uniswap/v3-sdk';
-import {
-    getFeeGrowthInside,
-    getTotalPositionFees,
-    parseTick,
-} from '../fees/total-owner-pool-fees';
+import { getFeeGrowthInside, getTotalPositionFees, parseTick } from '../fees/total-owner-pool-fees';
 import { BigNumber } from 'ethers';
 import { formatUnits } from 'ethers/lib/utils';
 
