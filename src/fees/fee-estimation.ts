@@ -171,7 +171,7 @@ export async function estimate24hUsdFees(
         return 0;
     }
 
-    // 3. get fee growth between given ticks
+    // 4. get fee growth between given ticks at present moment
     let [feeGrowthInside0X128, feeGrowthInside1X128] = getFeeGrowthInside(
         tickLowerInstanceCurrent,
         tickUpperInstanceCurrent,
@@ -180,6 +180,7 @@ export async function estimate24hUsdFees(
         BigNumber.from(poolDataCurrent.feeGrowthGlobal1X128),
     );
 
+    // 5. get fee growth at the beginning of the estimation period
     let [feeGrowthInside0LastX128, feeGrowthInside1LastX128] = getFeeGrowthInside(
         tickLowerInstanceOld,
         tickUpperInstanceOld,
@@ -188,10 +189,10 @@ export async function estimate24hUsdFees(
         BigNumber.from(poolDataOld.feeGrowthGlobal1X128),
     );
 
-    // 4. convert liquidityUsd to liquidity
+    // 6. convert liquidityUsd to liquidity
     const ethPrice = Number(result.data.bundle.ethPriceUSD);
-    const token0Price = ethPrice * Number(result.data.pool.token0.derivedETH);
-    const token1Price = ethPrice * Number(result.data.pool.token1.derivedETH);
+    const token0Price = ethPrice * Number(poolDataCurrent.token0.derivedETH);
+    const token1Price = ethPrice * Number(poolDataCurrent.token1.derivedETH);
 
     const liquidity = getLiquidity(
         result.data.pool,
@@ -202,7 +203,7 @@ export async function estimate24hUsdFees(
         token1Price,
     );
 
-    // 5. compute fees
+    // 7. compute fees
     let fees = getTotalPositionFees(
         feeGrowthInside0X128,
         feeGrowthInside1X128,
@@ -211,8 +212,8 @@ export async function estimate24hUsdFees(
         liquidity,
     );
 
-    const feesToken0 = Number(formatUnits(fees.amount0, result.data.pool.token0.decimals));
-    const feesToken1 = Number(formatUnits(fees.amount1, result.data.pool.token1.decimals));
+    const feesToken0 = Number(formatUnits(fees.amount0, poolDataCurrent.token0.decimals));
+    const feesToken1 = Number(formatUnits(fees.amount1, poolDataCurrent.token1.decimals));
 
     return (feesToken0 * token0Price + feesToken1 * token1Price) / numDaysAgo;
 }
