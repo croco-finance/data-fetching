@@ -11,7 +11,7 @@ import { getPoolTokenPrices, loadPosition, PositionInTest } from './test-utils';
 
 jest.setTimeout(30000);
 
-const POSITION_ID = '34054';
+const POSITION_ID = '44459';
 
 describe('Test fees and fee estimate', () => {
     // all the tests pass only if the user owns 1 position with ID 34054
