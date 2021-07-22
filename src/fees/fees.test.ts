@@ -99,7 +99,7 @@ describe('Test fees and fee estimate', () => {
         expect(token1err).toBeLessThan(3);
     });
 
-    test('The value of liquidity has less then 1% error compared to the reference after a conversion from USD to the inner contract format', async () => {
+    test('The value of liquidity has less then 2% error compared to the reference after a conversion from USD to the inner contract format', async () => {
         const referenceLiquidity = BigNumber.from(position.liquidity.toString());
 
         // 1. Fetch all the relevant data
@@ -129,7 +129,7 @@ describe('Test fees and fee estimate', () => {
         );
 
         const err = liquidity.sub(referenceLiquidity).mul(100).div(referenceLiquidity).abs();
-        expect(err.toNumber()).toBeLessThan(1);
+        expect(err.toNumber()).toBeLessThan(2);
     });
 
     test('24h fee estimate multiplied by the amount of days the position exists has less then a 5% error compared to the total position fees', async () => {
@@ -146,9 +146,11 @@ describe('Test fees and fee estimate', () => {
 
         // Fetch current token prices
         const totalFeesToken0UsdContract =
-            Number(formatUnits(totalFeesFromContract.amount0, 18)) * token0Price;
+            Number(formatUnits(totalFeesFromContract.amount0, position.token0Decimals)) *
+            token0Price;
         const totalFeesToken1UsdContract =
-            Number(formatUnits(totalFeesFromContract.amount1, 18)) * token1Price;
+            Number(formatUnits(totalFeesFromContract.amount1, position.token1Decimals)) *
+            token1Price;
         const totalFeesUsdContract = totalFeesToken0UsdContract + totalFeesToken1UsdContract;
 
         const err =

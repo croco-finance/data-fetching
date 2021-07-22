@@ -138,7 +138,7 @@ export async function estimate24hUsdFees(
     tickUpper: number,
     numDaysAgo: number,
 ): Promise<number> {
-    // 1. Fetch block from numDaysAgo
+    // 1. fetch block from numDaysAgo
     const blockNumDaysAgo = await getBlockNumDaysAgo(numDaysAgo);
 
     // 2. fetch all the other data
@@ -152,7 +152,7 @@ export async function estimate24hUsdFees(
         },
     });
 
-    // 3. Parse and verify data
+    // 3. parse and verify data
     const poolDataCurrent = result.data.pool;
     const tickLowerInstanceCurrent = parseTick(result.data.tickLower[0]);
     const tickUpperInstanceCurrent = parseTick(result.data.tickUpper[0]);

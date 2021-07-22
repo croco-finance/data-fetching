@@ -47,6 +47,8 @@ export interface PositionInTest {
     tickUpper: number;
     creationTimestamp: number;
     creationBlock: number;
+    token0Decimals: number;
+    token1Decimals: number;
 }
 
 const POSITION_QUERY = gql`
@@ -110,5 +112,7 @@ export async function loadPosition(id: string): Promise<PositionInTest> {
         tickUpper: position.tickUpper,
         creationTimestamp: Number(rawPosition.transaction.timestamp),
         creationBlock: Number(rawPosition.transaction.blockNumber),
+        token0Decimals: position.pool.token0.decimals,
+        token1Decimals: position.pool.token1.decimals,
     };
 }
