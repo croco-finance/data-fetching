@@ -24,7 +24,24 @@ export interface Snapshot {
     amountToken0: CurrencyAmount<Token>;
     amountToken1: CurrencyAmount<Token>;
 
+    priceToken0: number;
+    priceToken1: number;
+
     // Transaction related to this snapshot
+    transaction: Transaction;
+}
+
+export enum InteractionType {
+    DEPOSIT,
+    WITHDRAW,
+    COLLECT,
+}
+
+export interface Interaction {
+    type: InteractionType;
+    amountToken0: number;
+    amountToken1: number;
+    valueUSD: number;
     transaction: Transaction;
 }
 
@@ -41,4 +58,5 @@ export interface ExpandedPositionInfo {
 
     dailyFees: FeesChartEntry[];
     snapshots: Snapshot[];
+    interactions: Interaction[];
 }
