@@ -119,48 +119,14 @@ function dailyFeesToChartFormat(dailyFees: DailyFees, decimals0: number, decimal
 
 function getInteractions(snaps: Snapshot[]): Interaction[] {
   const interactions: Interaction[] = []
-  interactions.push({
-    type: InteractionType.DEPOSIT,
-    amountToken0: snaps[0].depositedToken0,
-    amountToken1: snaps[0].depositedToken1,
-    valueUSD: snaps[0].depositedToken0 * snaps[0].priceToken0 + snaps[0].depositedToken1 * snaps[0].priceToken1,
-    transaction: snaps[0].transaction,
-  })
-  for (let i = 1; i < snaps.length; i++) {
-    const prevSnap = snaps[i - 1]
-    const curSnap = snaps[i]
-    let interaction
-    if (prevSnap.depositedToken0 !== curSnap.depositedToken0 || prevSnap.depositedToken1 !== curSnap.depositedToken1) {
-      interaction = {
-        type: InteractionType.DEPOSIT,
-        amountToken0: curSnap.depositedToken0 - prevSnap.depositedToken0,
-        amountToken1: curSnap.depositedToken1 - prevSnap.depositedToken1,
-        valueUSD: 0,
-        transaction: curSnap.transaction,
-      }
-    } else if (
-      prevSnap.withdrawnToken0 !== curSnap.withdrawnToken0 ||
-      prevSnap.withdrawnToken1 !== curSnap.withdrawnToken1
-    ) {
-      interaction = {
-        type: InteractionType.WITHDRAW,
-        amountToken0: curSnap.withdrawnToken0 - prevSnap.withdrawnToken0,
-        amountToken1: curSnap.withdrawnToken1 - prevSnap.withdrawnToken1,
-        valueUSD: 0,
-        transaction: curSnap.transaction,
-      }
-    } else {
-      interaction = {
-        type: InteractionType.COLLECT,
-        amountToken0: curSnap.collectedFeesToken0 - prevSnap.collectedFeesToken0,
-        amountToken1: curSnap.collectedFeesToken1 - prevSnap.collectedFeesToken1,
-        valueUSD: 0,
-        transaction: curSnap.transaction,
-      }
-    }
-    interaction.valueUSD =
-      interaction.amountToken0 * curSnap.priceToken0 + interaction.amountToken1 * curSnap.priceToken1
+  for (let i = 0; i < snaps.length; i++) {
+    const interaction = new Interaction(snaps[i], snaps[i - 1])
     interactions.push(interaction)
+    if (interaction.type === InteractionType.WITHDRAW) {
+      // Withdraw is always accompanied by collect. For this reason, I will
+      // create another interaction of type collect from the same snaps
+      interactions.push(new Interaction(snaps[i], snaps[i - 1], true))
+    }
   }
   return interactions
 }
@@ -268,4 +234,5 @@ async function getExpandedPosition(positionInOverview: PositionInOverview): Prom
   const owners = ['0x95ae3008c4ed8c2804051dd00f7a27dad5724ed1']
   const positions = await getPositions(owners)
   const expandedPosition = await getExpandedPosition(positions[0])
+  console.log(expandedPosition)
 })().catch((error) => console.error(error))

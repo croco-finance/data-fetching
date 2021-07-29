@@ -37,12 +37,44 @@ export enum InteractionType {
   COLLECT,
 }
 
-export interface Interaction {
-  type: InteractionType
-  amountToken0: number
-  amountToken1: number
-  valueUSD: number
-  transaction: Transaction
+export class Interaction {
+  readonly type: InteractionType
+  readonly amountToken0: number
+  readonly amountToken1: number
+  readonly transaction: Transaction
+  readonly valueUSD: number
+
+  constructor(curSnap: Snapshot, prevSnap: Snapshot | undefined, afterWithdraw = false) {
+    if (prevSnap === undefined) {
+      this.type = InteractionType.DEPOSIT
+      this.amountToken0 = curSnap.depositedToken0
+      this.amountToken1 = curSnap.depositedToken1
+    } else if (afterWithdraw) {
+      this.type = InteractionType.COLLECT
+      this.amountToken0 = curSnap.collectedFeesToken0 - prevSnap.collectedFeesToken0
+      this.amountToken1 = curSnap.collectedFeesToken1 - prevSnap.collectedFeesToken1
+    } else if (
+      prevSnap.depositedToken0 !== curSnap.depositedToken0 ||
+      prevSnap.depositedToken1 !== curSnap.depositedToken1
+    ) {
+      this.type = InteractionType.DEPOSIT
+      this.amountToken0 = curSnap.depositedToken0 - prevSnap.depositedToken0
+      this.amountToken1 = curSnap.depositedToken1 - prevSnap.depositedToken1
+    } else if (
+      prevSnap.withdrawnToken0 !== curSnap.withdrawnToken0 ||
+      prevSnap.withdrawnToken1 !== curSnap.withdrawnToken1
+    ) {
+      this.type = InteractionType.WITHDRAW
+      this.amountToken0 = curSnap.withdrawnToken0 - prevSnap.withdrawnToken0
+      this.amountToken1 = curSnap.withdrawnToken1 - prevSnap.withdrawnToken1
+    } else {
+      this.type = InteractionType.COLLECT
+      this.amountToken0 = curSnap.collectedFeesToken0 - prevSnap.collectedFeesToken0
+      this.amountToken1 = curSnap.collectedFeesToken1 - prevSnap.collectedFeesToken1
+    }
+    this.transaction = curSnap.transaction
+    this.valueUSD = this.amountToken0 * curSnap.priceToken0 + this.amountToken1 * curSnap.priceToken1
+  }
 }
 
 export type FeesChartEntry = {
