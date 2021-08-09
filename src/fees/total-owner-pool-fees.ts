@@ -1,6 +1,7 @@
 import { gql } from '@apollo/client/core'
 import { client } from '../apollo/client'
 import { BigNumber } from 'ethers'
+import { getFeeGrowthInside, getVmContractAddressAccountAddress } from './contract-utils'
 
 // See https://docs.uniswap.org/reference/core/libraries/FixedPoint128 for details
 const Q128 = BigNumber.from('0x100000000000000000000000000000000')
@@ -49,42 +50,6 @@ export function parseTick(tick: any): Tick {
   }
 }
 
-// reimplementation of Tick.getFeeGrowthInside
-export function getFeeGrowthInside(
-  tickLower: Tick,
-  tickUpper: Tick,
-  tickCurrentId: Number,
-  feeGrowthGlobal0X128: BigNumber,
-  feeGrowthGlobal1X128: BigNumber
-): [BigNumber, BigNumber] {
-  // calculate fee growth below
-  let feeGrowthBelow0X128: BigNumber
-  let feeGrowthBelow1X128: BigNumber
-  if (tickCurrentId >= tickLower.idx) {
-    feeGrowthBelow0X128 = tickLower.feeGrowthOutside0X128
-    feeGrowthBelow1X128 = tickLower.feeGrowthOutside1X128
-  } else {
-    feeGrowthBelow0X128 = feeGrowthGlobal0X128.sub(tickLower.feeGrowthOutside0X128)
-    feeGrowthBelow1X128 = feeGrowthGlobal1X128.sub(tickLower.feeGrowthOutside1X128)
-  }
-
-  // calculate fee growth above
-  let feeGrowthAbove0X128: BigNumber
-  let feeGrowthAbove1X128: BigNumber
-  if (tickCurrentId < tickUpper.idx) {
-    feeGrowthAbove0X128 = tickUpper.feeGrowthOutside0X128
-    feeGrowthAbove1X128 = tickUpper.feeGrowthOutside1X128
-  } else {
-    feeGrowthAbove0X128 = feeGrowthGlobal0X128.sub(tickUpper.feeGrowthOutside0X128)
-    feeGrowthAbove1X128 = feeGrowthGlobal1X128.sub(tickUpper.feeGrowthOutside1X128)
-  }
-
-  let feeGrowthInside0X128 = feeGrowthGlobal0X128.sub(feeGrowthBelow0X128).sub(feeGrowthAbove0X128)
-  let feeGrowthInside1X128 = feeGrowthGlobal1X128.sub(feeGrowthBelow1X128).sub(feeGrowthAbove1X128)
-
-  return [feeGrowthInside0X128, feeGrowthInside1X128]
-}
-
 export function getTotalPositionFees(
   feeGrowthInside0X128: BigNumber,
   feeGrowthInside1X128: BigNumber,
@@ -107,13 +72,18 @@ export async function getTotalOwnerPoolFees(owner: string, pool: string): Promis
     },
   })
 
+  const [vm, contractAddress, accountAddress] = await getVmContractAddressAccountAddress()
+
   const totalFees: TokenFees = {
     amount0: BigNumber.from(0),
     amount1: BigNumber.from(0),
   }
 
   for (const position of result.data.positions) {
-    let [feeGrowthInside0X128, feeGrowthInside1X128] = getFeeGrowthInside(
+    let [feeGrowthInside0X128, feeGrowthInside1X128] = await getFeeGrowthInside(
+      vm,
+      contractAddress,
+      accountAddress,
       parseTick(position.tickLower),
       parseTick(position.tickUpper),
       Number(position.pool.tick),
