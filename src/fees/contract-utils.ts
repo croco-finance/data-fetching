@@ -76,6 +76,32 @@ export async function getFeeGrowthInside(
   return [results[0], results[1]]
 }
 
+export async function getPositionFees(
+  vm: VM,
+  contractAddress: Address,
+  caller: Address,
+  feeGrowthInside: BigNumber,
+  feeGrowthInsideLast: BigNumber,
+  liquidity: BigNumber
+): Promise<BigNumber> {
+  const params = AbiCoder.encode(['uint256', 'uint256', 'uint256'], [feeGrowthInside, feeGrowthInsideLast, liquidity])
+  const sigHash = new Interface(['function getPositionFees(uint256,uint256,uint256)']).getSighash('getPositionFees')
+  const result = await vm.runCall({
+    to: contractAddress,
+    caller: caller,
+    origin: caller, // The tx.origin is also the caller here
+    data: Buffer.from(sigHash.slice(2) + params.slice(2), 'hex'),
+  })
+
+  if (result.execResult.exceptionError) {
+    throw result.execResult.exceptionError
+  }
+
+  const results = AbiCoder.decode(['uint128'], result.execResult.returnValue)
+
+  return results[0]
+}
+
 export async function getVmContractAddressAccountAddress(): Promise<[VM, Address, Address]> {
   const accountPk = Buffer.from('e331b6d69882b4cb4ea581d88e0b604039a3de5967688d3dcffdd2270c0fd109', 'hex')
 

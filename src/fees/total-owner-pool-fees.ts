@@ -1,10 +1,7 @@
 import { gql } from '@apollo/client/core'
 import { client } from '../apollo/client'
 import { BigNumber } from 'ethers'
-import { getFeeGrowthInside, getVmContractAddressAccountAddress } from './contract-utils'
-
-// See https://docs.uniswap.org/reference/core/libraries/FixedPoint128 for details
-const Q128 = BigNumber.from('0x100000000000000000000000000000000')
+import { getFeeGrowthInside, getPositionFees, getVmContractAddressAccountAddress } from './contract-utils'
 
 export interface TokenFees {
   amount0: BigNumber
@@ -50,19 +47,6 @@ export function parseTick(tick: any): Tick {
   }
 }
 
-export function getTotalPositionFees(
-  feeGrowthInside0X128: BigNumber,
-  feeGrowthInside1X128: BigNumber,
-  feeGrowthInside0LastX128: BigNumber,
-  feeGrowthInside1LastX128: BigNumber,
-  liquidity: BigNumber
-): TokenFees {
-  return {
-    amount0: feeGrowthInside0X128.sub(feeGrowthInside0LastX128).mul(liquidity).div(Q128),
-    amount1: feeGrowthInside1X128.sub(feeGrowthInside1LastX128).mul(liquidity).div(Q128),
-  }
-}
-
 export async function getTotalOwnerPoolFees(owner: string, pool: string): Promise<TokenFees> {
   const result = await client.query({
     query: POSITIONS_QUERY,
@@ -90,16 +74,25 @@ export async function getTotalOwnerPoolFees(owner: string, pool: string): Promis
       BigNumber.from(position.pool.feeGrowthGlobal0X128),
       BigNumber.from(position.pool.feeGrowthGlobal1X128)
     )
-    let fees = getTotalPositionFees(
+    let fees0 = await getPositionFees(
+      vm,
+      contractAddress,
+      accountAddress,
       feeGrowthInside0X128,
-      feeGrowthInside1X128,
       BigNumber.from(position.feeGrowthInside0LastX128),
+      BigNumber.from(position.liquidity)
+    )
+    let fees1 = await getPositionFees(
+      vm,
+      contractAddress,
+      accountAddress,
+      feeGrowthInside1X128,
       BigNumber.from(position.feeGrowthInside1LastX128),
       BigNumber.from(position.liquidity)
     )
 
-    totalFees.amount0 = totalFees.amount0.add(fees.amount0)
-    totalFees.amount1 = totalFees.amount1.add(fees.amount1)
+    totalFees.amount0 = totalFees.amount0.add(fees0)
+    totalFees.amount1 = totalFees.amount1.add(fees1)
   }
   return totalFees
 }
