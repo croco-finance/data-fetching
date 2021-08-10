@@ -160,7 +160,7 @@ async function getExpandedPosition(positionInOverview: PositionInOverview): Prom
       oldestSnapTimestamp = snapTimestamp
     }
   }
-  const minTimestamp = Math.max(dayjs().subtract(30, 'day').unix(), oldestSnapTimestamp)
+  const minTimestamp = Math.max(dayjs().subtract(1000, 'day').unix(), oldestSnapTimestamp)
 
   // 4. fetch positions, snapshots, pool, tick day data and eth prices in snap creation times
   result = await client.query({
@@ -168,7 +168,7 @@ async function getExpandedPosition(positionInOverview: PositionInOverview): Prom
   })
 
   // 5. compute daily fees from all the data
-  const dailyFees = computeFees(result.data, rawPosition, rawSnaps)
+  const dailyFeesPromise = computeFees(result.data, rawPosition, rawSnaps)
 
   // 6. process snapshots
   let snapshots: Snapshot[] = []
@@ -221,7 +221,7 @@ async function getExpandedPosition(positionInOverview: PositionInOverview): Prom
     collectedFeesToken0: snapshots[snapshots.length - 1].collectedFeesToken0,
     collectedFeesToken1: snapshots[snapshots.length - 1].collectedFeesToken1,
     dailyFees: dailyFeesToChartFormat(
-      dailyFees,
+      await dailyFeesPromise,
       positionInOverview.pool.token0.decimals,
       positionInOverview.pool.token1.decimals
     ),
