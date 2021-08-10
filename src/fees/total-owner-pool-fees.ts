@@ -1,7 +1,7 @@
 import { gql } from '@apollo/client/core'
 import { client } from '../apollo/client'
 import { BigNumber } from 'ethers'
-import { getFeeGrowthInside, getPositionFees, getVmContractAddressAccountAddress } from './contract-utils'
+import { getFeeGrowthInside, getPositionFees, deployContractAndGetVm } from './contract-utils'
 
 export interface TokenFees {
   amount0: BigNumber
@@ -56,7 +56,7 @@ export async function getTotalOwnerPoolFees(owner: string, pool: string): Promis
     },
   })
 
-  const [vm, contractAddress, accountAddress] = await getVmContractAddressAccountAddress()
+  const vm = await deployContractAndGetVm()
 
   const totalFees: TokenFees = {
     amount0: BigNumber.from(0),
@@ -66,8 +66,6 @@ export async function getTotalOwnerPoolFees(owner: string, pool: string): Promis
   for (const position of result.data.positions) {
     const [feeGrowthInside0X128, feeGrowthInside1X128] = await getFeeGrowthInside(
       vm,
-      contractAddress,
-      accountAddress,
       parseTick(position.tickLower),
       parseTick(position.tickUpper),
       Number(position.pool.tick),
@@ -78,16 +76,12 @@ export async function getTotalOwnerPoolFees(owner: string, pool: string): Promis
     const liquidity = BigNumber.from(position.liquidity)
     const fees0Promise = getPositionFees(
       vm,
-      contractAddress,
-      accountAddress,
       feeGrowthInside0X128,
       BigNumber.from(position.feeGrowthInside0LastX128),
       liquidity
     )
     const fees1Promise = getPositionFees(
       vm,
-      contractAddress,
-      accountAddress,
       feeGrowthInside1X128,
       BigNumber.from(position.feeGrowthInside1LastX128),
       liquidity

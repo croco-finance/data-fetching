@@ -6,7 +6,7 @@ import { parseTick } from './total-owner-pool-fees'
 import { BigNumber } from 'ethers'
 import { getBlockNumDaysAgo } from './utils'
 import { formatUnits } from 'ethers/lib/utils'
-import { getFeeGrowthInside, getPositionFees, getVmContractAddressAccountAddress } from './contract-utils'
+import { getFeeGrowthInside, getPositionFees, deployContractAndGetVm } from './contract-utils'
 
 export const FEE_ESTIMATE_QUERY = gql`
   query feeEstimationData($pool: String, $tickLower: Int, $tickUpper: Int, $block: Int) {
@@ -139,7 +139,7 @@ export async function estimate24hUsdFees(
   tickUpper: number,
   numDaysAgo: number
 ): Promise<number> {
-  const [vm, contractAddress, accountAddress] = await getVmContractAddressAccountAddress()
+  const vm = await deployContractAndGetVm()
   // 1. fetch block from numDaysAgo
   const blockNumDaysAgo = await getBlockNumDaysAgo(numDaysAgo)
 
@@ -176,8 +176,6 @@ export async function estimate24hUsdFees(
   // 4. get fee growth between given ticks at present moment
   let [feeGrowthInside0X128, feeGrowthInside1X128] = await getFeeGrowthInside(
     vm,
-    contractAddress,
-    accountAddress,
     tickLowerInstanceCurrent,
     tickUpperInstanceCurrent,
     Number(poolDataCurrent.tick),
@@ -188,8 +186,6 @@ export async function estimate24hUsdFees(
   // 5. get fee growth at the beginning of the estimation period
   let [feeGrowthInside0LastX128, feeGrowthInside1LastX128] = await getFeeGrowthInside(
     vm,
-    contractAddress,
-    accountAddress,
     tickLowerInstanceOld,
     tickUpperInstanceOld,
     Number(poolDataOld.tick),
@@ -205,22 +201,8 @@ export async function estimate24hUsdFees(
   const liquidity = getLiquidity(result.data.pool, tickLower, tickUpper, liquidityUsd, token0Price, token1Price)
 
   // 7. compute fees
-  const fees0Promise = getPositionFees(
-    vm,
-    contractAddress,
-    accountAddress,
-    feeGrowthInside0X128,
-    feeGrowthInside0LastX128,
-    liquidity
-  )
-  const fees1Promise = getPositionFees(
-    vm,
-    contractAddress,
-    accountAddress,
-    feeGrowthInside1X128,
-    feeGrowthInside1LastX128,
-    liquidity
-  )
+  const fees0Promise = getPositionFees(vm, feeGrowthInside0X128, feeGrowthInside0LastX128, liquidity)
+  const fees1Promise = getPositionFees(vm, feeGrowthInside1X128, feeGrowthInside1LastX128, liquidity)
 
   const feesToken0 = Number(formatUnits(await fees0Promise, poolDataCurrent.token0.decimals))
   const feesToken1 = Number(formatUnits(await fees1Promise, poolDataCurrent.token1.decimals))

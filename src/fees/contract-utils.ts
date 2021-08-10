@@ -5,6 +5,10 @@ import { defaultAbiCoder as AbiCoder, Interface } from '@ethersproject/abi'
 import { BigNumber } from 'ethers'
 import { Tick } from './total-owner-pool-fees'
 
+const PRIVATE_KEY = Buffer.from('e331b6d69882b4cb4ea581d88e0b604039a3de5967688d3dcffdd2270c0fd109', 'hex')
+const ACCOUNT_ADDRESS = Address.fromPrivateKey(PRIVATE_KEY)
+const CONTRACT_ADDRESS = Address.fromString('0x61de9dc6f6cff1df2809480882cfd3c2364b28f7')
+
 async function getAccountNonce(vm: VM, accountPrivateKey: Buffer) {
   const address = Address.fromPrivateKey(accountPrivateKey)
   const account = await vm.stateManager.getAccount(address)
@@ -35,8 +39,6 @@ async function deployContract(vm: VM, senderPrivateKey: Buffer, deploymentByteco
 
 export async function getFeeGrowthInside(
   vm: VM,
-  contractAddress: Address,
-  caller: Address,
   tickLower: Tick,
   tickUpper: Tick,
   tickCurrentId: Number,
@@ -61,9 +63,9 @@ export async function getFeeGrowthInside(
     'function getFeeGrowthInside(int24,int24,int24,uint256,uint256,uint256,uint256,uint256,uint256)',
   ]).getSighash('getFeeGrowthInside')
   const result = await vm.runCall({
-    to: contractAddress,
-    caller: caller,
-    origin: caller, // The tx.origin is also the caller here
+    to: CONTRACT_ADDRESS,
+    caller: ACCOUNT_ADDRESS,
+    origin: ACCOUNT_ADDRESS, // The tx.origin is also the caller here
     data: Buffer.from(sigHash.slice(2) + params.slice(2), 'hex'),
   })
 
@@ -78,8 +80,6 @@ export async function getFeeGrowthInside(
 
 export async function getPositionFees(
   vm: VM,
-  contractAddress: Address,
-  caller: Address,
   feeGrowthInside: BigNumber,
   feeGrowthInsideLast: BigNumber,
   liquidity: BigNumber
@@ -87,9 +87,9 @@ export async function getPositionFees(
   const params = AbiCoder.encode(['uint256', 'uint256', 'uint256'], [feeGrowthInside, feeGrowthInsideLast, liquidity])
   const sigHash = new Interface(['function getPositionFees(uint256,uint256,uint256)']).getSighash('getPositionFees')
   const result = await vm.runCall({
-    to: contractAddress,
-    caller: caller,
-    origin: caller, // The tx.origin is also the caller here
+    to: CONTRACT_ADDRESS,
+    caller: ACCOUNT_ADDRESS,
+    origin: ACCOUNT_ADDRESS, // The tx.origin is also the caller here
     data: Buffer.from(sigHash.slice(2) + params.slice(2), 'hex'),
   })
 
@@ -102,22 +102,15 @@ export async function getPositionFees(
   return results[0]
 }
 
-export async function getVmContractAddressAccountAddress(): Promise<[VM, Address, Address]> {
-  const accountPk = Buffer.from('e331b6d69882b4cb4ea581d88e0b604039a3de5967688d3dcffdd2270c0fd109', 'hex')
-
-  const accountAddress = Address.fromPrivateKey(accountPk)
-  // console.log('Account: ', accountAddress.toString())
-
-  const acctData = {
+export async function deployContractAndGetVm(): Promise<VM> {
+  const account = Account.fromAccountData({
     nonce: 0,
     balance: new BN(10).pow(new BN(18)), // 1 eth
-  }
-  const account = Account.fromAccountData(acctData)
+  })
+  // console.log('Set account a balance of 1 ETH')
 
   const vm = new VM()
-  await vm.stateManager.putAccount(accountAddress, account)
-
-  // console.log('Set account a balance of 1 ETH')
+  await vm.stateManager.putAccount(ACCOUNT_ADDRESS, account)
 
   // Bytecode obtained from https://github.com/croco-finance/uni-v3-fees-contract
   const bytecode = Buffer.from(
@@ -126,8 +119,9 @@ export async function getVmContractAddressAccountAddress(): Promise<[VM, Address
   )
 
   // console.log('Deploying the contract...')
-  const contractAddress = await deployContract(vm, accountPk, bytecode)
-
+  // const contractAddress = await deployContract(vm, PRIVATE_KEY, bytecode)
+  await deployContract(vm, PRIVATE_KEY, bytecode)
   // console.log('Contract address:', contractAddress.toString())
-  return [vm, contractAddress, accountAddress]
+
+  return vm
 }

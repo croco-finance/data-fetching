@@ -3,7 +3,7 @@ import { client } from '../apollo/client'
 import dayjs from 'dayjs'
 import { BigNumber } from 'ethers'
 import { Tick, TokenFees } from './total-owner-pool-fees'
-import { getFeeGrowthInside, getPositionFees, getVmContractAddressAccountAddress } from './contract-utils'
+import { getFeeGrowthInside, getPositionFees, deployContractAndGetVm } from './contract-utils'
 
 const POSITION_AND_SNAPS = gql`
   query tickIds($positionId: String) {
@@ -82,7 +82,7 @@ function parseTickDayData(tickDayData: any): Tick {
 }
 
 export async function computeFees(data: any, position: any, positionSnaps: any): Promise<DailyFees> {
-  const [vm, contractAddress, accountAddress] = await getVmContractAddressAccountAddress()
+  const vm = await deployContractAndGetVm()
   const positionFees: DailyFees = {}
 
   // 1. Get tickDayDatas and merge first smaller with the rest
@@ -119,8 +119,6 @@ export async function computeFees(data: any, position: any, positionSnaps: any):
 
     const [feeGrowthInside0X128, feeGrowthInside1X128] = await getFeeGrowthInside(
       vm,
-      contractAddress,
-      accountAddress,
       lowerTickDayData,
       upperTickDayData,
       Number(poolDayData.tick),
@@ -129,22 +127,8 @@ export async function computeFees(data: any, position: any, positionSnaps: any):
     )
 
     const liquidity = BigNumber.from(positionSnaps[currentSnapIndex].liquidity)
-    const fees0Promise = getPositionFees(
-      vm,
-      contractAddress,
-      accountAddress,
-      feeGrowthInside0X128,
-      feeGrowthInside0LastX128,
-      liquidity
-    )
-    const fees1Promise = getPositionFees(
-      vm,
-      contractAddress,
-      accountAddress,
-      feeGrowthInside1X128,
-      feeGrowthInside1LastX128,
-      liquidity
-    )
+    const fees0Promise = getPositionFees(vm, feeGrowthInside0X128, feeGrowthInside0LastX128, liquidity)
+    const fees1Promise = getPositionFees(vm, feeGrowthInside1X128, feeGrowthInside1LastX128, liquidity)
 
     feeGrowthInside0LastX128 = feeGrowthInside0X128
     feeGrowthInside1LastX128 = feeGrowthInside1X128
