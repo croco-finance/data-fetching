@@ -74,7 +74,7 @@ export async function getTotalOwnerPoolFees(owner: string, pool: string): Promis
       BigNumber.from(position.pool.feeGrowthGlobal0X128),
       BigNumber.from(position.pool.feeGrowthGlobal1X128)
     )
-    let fees0 = await getPositionFees(
+    let fees0Promise = getPositionFees(
       vm,
       contractAddress,
       accountAddress,
@@ -82,7 +82,7 @@ export async function getTotalOwnerPoolFees(owner: string, pool: string): Promis
       BigNumber.from(position.feeGrowthInside0LastX128),
       BigNumber.from(position.liquidity)
     )
-    let fees1 = await getPositionFees(
+    let fees1Promise = getPositionFees(
       vm,
       contractAddress,
       accountAddress,
@@ -91,8 +91,8 @@ export async function getTotalOwnerPoolFees(owner: string, pool: string): Promis
       BigNumber.from(position.liquidity)
     )
 
-    totalFees.amount0 = totalFees.amount0.add(fees0)
-    totalFees.amount1 = totalFees.amount1.add(fees1)
+    totalFees.amount0 = totalFees.amount0.add(await fees0Promise)
+    totalFees.amount1 = totalFees.amount1.add(await fees1Promise)
   }
   return totalFees
 }
