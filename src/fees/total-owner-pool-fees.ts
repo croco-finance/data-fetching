@@ -64,7 +64,7 @@ export async function getTotalOwnerPoolFees(owner: string, pool: string): Promis
   }
 
   for (const position of result.data.positions) {
-    let [feeGrowthInside0X128, feeGrowthInside1X128] = await getFeeGrowthInside(
+    const [feeGrowthInside0X128, feeGrowthInside1X128] = await getFeeGrowthInside(
       vm,
       contractAddress,
       accountAddress,
@@ -74,21 +74,23 @@ export async function getTotalOwnerPoolFees(owner: string, pool: string): Promis
       BigNumber.from(position.pool.feeGrowthGlobal0X128),
       BigNumber.from(position.pool.feeGrowthGlobal1X128)
     )
-    let fees0Promise = getPositionFees(
+
+    const liquidity = BigNumber.from(position.liquidity)
+    const fees0Promise = getPositionFees(
       vm,
       contractAddress,
       accountAddress,
       feeGrowthInside0X128,
       BigNumber.from(position.feeGrowthInside0LastX128),
-      BigNumber.from(position.liquidity)
+      liquidity
     )
-    let fees1Promise = getPositionFees(
+    const fees1Promise = getPositionFees(
       vm,
       contractAddress,
       accountAddress,
       feeGrowthInside1X128,
       BigNumber.from(position.feeGrowthInside1LastX128),
-      BigNumber.from(position.liquidity)
+      liquidity
     )
 
     totalFees.amount0 = totalFees.amount0.add(await fees0Promise)

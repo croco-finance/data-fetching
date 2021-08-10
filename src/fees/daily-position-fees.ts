@@ -2,7 +2,8 @@ import { gql } from '@apollo/client/core'
 import { client } from '../apollo/client'
 import dayjs from 'dayjs'
 import { BigNumber } from 'ethers'
-import { getFeeGrowthInside, getTotalPositionFees, Tick, TokenFees } from './total-owner-pool-fees'
+import { Tick, TokenFees } from './total-owner-pool-fees'
+import { getFeeGrowthInside, getPositionFees, getVmContractAddressAccountAddress } from './contract-utils'
 
 const POSITION_AND_SNAPS = gql`
   query tickIds($positionId: String) {
@@ -80,7 +81,8 @@ function parseTickDayData(tickDayData: any): Tick {
   }
 }
 
-export function computeFees(data: any, position: any, positionSnaps: any): DailyFees {
+export async function computeFees(data: any, position: any, positionSnaps: any): Promise<DailyFees> {
+  const [vm, contractAddress, accountAddress] = await getVmContractAddressAccountAddress()
   const positionFees: DailyFees = {}
 
   // 1. Get tickDayDatas and merge first smaller with the rest
@@ -104,8 +106,8 @@ export function computeFees(data: any, position: any, positionSnaps: any): Daily
       (tickDayData: { date: any }) => tickDayData.date <= poolDayData.date
     )
 
-    let lowerTickDayData = parseTickDayData(lowerTickDayDataRaw)
-    let upperTickDayData = parseTickDayData(upperTickDayDataRaw)
+    const lowerTickDayData = parseTickDayData(lowerTickDayDataRaw)
+    const upperTickDayData = parseTickDayData(upperTickDayDataRaw)
 
     // 4. increment snap index if necessary
     if (
@@ -115,31 +117,41 @@ export function computeFees(data: any, position: any, positionSnaps: any): Daily
       currentSnapIndex += 1
     }
 
-    let [feeGrowthInside0X128, feeGrowthInside1X128] = getFeeGrowthInside(
+    const [feeGrowthInside0X128, feeGrowthInside1X128] = await getFeeGrowthInside(
+      vm,
+      contractAddress,
+      accountAddress,
       lowerTickDayData,
       upperTickDayData,
       Number(poolDayData.tick),
       BigNumber.from(poolDayData.feeGrowthGlobal0X128),
       BigNumber.from(poolDayData.feeGrowthGlobal1X128)
     )
-    if (
-      feeGrowthInside0X128.sub(feeGrowthInside0LastX128).lt('0') ||
-      feeGrowthInside1X128.sub(feeGrowthInside1LastX128).lt('0')
-    ) {
-      positionFees[poolDayData.date] = {
-        amount0: BigNumber.from('0'),
-        amount1: BigNumber.from('0'),
-      }
-    } else {
-      positionFees[poolDayData.date] = getTotalPositionFees(
-        feeGrowthInside0X128,
-        feeGrowthInside1X128,
-        feeGrowthInside0LastX128,
-        feeGrowthInside1LastX128,
-        BigNumber.from(positionSnaps[currentSnapIndex].liquidity)
-      )
-      feeGrowthInside0LastX128 = feeGrowthInside0X128
-      feeGrowthInside1LastX128 = feeGrowthInside1X128
+
+    const liquidity = BigNumber.from(positionSnaps[currentSnapIndex].liquidity)
+    const fees0Promise = getPositionFees(
+      vm,
+      contractAddress,
+      accountAddress,
+      feeGrowthInside0X128,
+      feeGrowthInside0LastX128,
+      liquidity
+    )
+    const fees1Promise = getPositionFees(
+      vm,
+      contractAddress,
+      accountAddress,
+      feeGrowthInside1X128,
+      feeGrowthInside1LastX128,
+      liquidity
+    )
+
+    feeGrowthInside0LastX128 = feeGrowthInside0X128
+    feeGrowthInside1LastX128 = feeGrowthInside1X128
+
+    positionFees[poolDayData.date] = {
+      amount0: await fees0Promise,
+      amount1: await fees1Promise,
     }
   }
   return positionFees
