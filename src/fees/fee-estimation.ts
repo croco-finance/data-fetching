@@ -125,8 +125,8 @@ export function getLiquidity(
     pool.sqrtRatioX96,
     TickMath.getSqrtRatioAtTick(tickLower),
     TickMath.getSqrtRatioAtTick(tickUpper),
-    token0Amount.toFixed(0),
-    token1Amount.toFixed(0),
+    Math.round(token0Amount),
+    Math.round(token1Amount),
     true
   )
   return BigNumber.from(liquidityJSBI.toString())
