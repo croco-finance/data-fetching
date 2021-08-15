@@ -93,9 +93,18 @@ export async function computeFees(data: any, position: any, positionSnaps: any):
   const upperTickDayDatas = data[processedId].concat(data[processedId + '_first_smaller'])
 
   // 2. Iterate over pool day data
-  let feeGrowthInside0LastX128 = BigNumber.from(positionSnaps[0].feeGrowthInside0LastX128)
-  let feeGrowthInside1LastX128 = BigNumber.from(positionSnaps[0].feeGrowthInside1LastX128)
+  let feeGrowthInside0SnapX128 = BigNumber.from(positionSnaps[0].feeGrowthInside0LastX128)
+  let feeGrowthInside1SnapX128 = BigNumber.from(positionSnaps[0].feeGrowthInside1LastX128)
+  let prevTotalFeesSinceSnap = {
+    amount0: BigNumber.from('0'),
+    amount1: BigNumber.from('0'),
+  }
   let currentSnapIndex = 0
+
+  // workaround variable
+  let remaining0 = BigNumber.from('0')
+  let remaining1 = BigNumber.from('0')
+
   for (const poolDayData of data.poolDayDatas) {
     // 3. Get the first tickDayData whose date is smaller or equal to current poolDayData
     const lowerTickDayDataRaw = lowerTickDayDatas.find(
@@ -115,6 +124,12 @@ export async function computeFees(data: any, position: any, positionSnaps: any):
       positionSnaps[currentSnapIndex + 1].timestamp <= poolDayData.date
     ) {
       currentSnapIndex += 1
+      feeGrowthInside0SnapX128 = BigNumber.from(positionSnaps[currentSnapIndex].feeGrowthInside0LastX128)
+      feeGrowthInside1SnapX128 = BigNumber.from(positionSnaps[currentSnapIndex].feeGrowthInside1LastX128)
+      prevTotalFeesSinceSnap = {
+        amount0: BigNumber.from('0'),
+        amount1: BigNumber.from('0'),
+      }
     }
 
     const [feeGrowthInside0X128, feeGrowthInside1X128] = await getFeeGrowthInside(
@@ -127,16 +142,37 @@ export async function computeFees(data: any, position: any, positionSnaps: any):
     )
 
     const liquidity = BigNumber.from(positionSnaps[currentSnapIndex].liquidity)
-    const fees0Promise = getPositionFees(vm, feeGrowthInside0X128, feeGrowthInside0LastX128, liquidity)
-    const fees1Promise = getPositionFees(vm, feeGrowthInside1X128, feeGrowthInside1LastX128, liquidity)
+    const fees0Promise = getPositionFees(vm, feeGrowthInside0X128, feeGrowthInside0SnapX128, liquidity)
+    const fees1Promise = getPositionFees(vm, feeGrowthInside1X128, feeGrowthInside1SnapX128, liquidity)
 
-    feeGrowthInside0LastX128 = feeGrowthInside0X128
-    feeGrowthInside1LastX128 = feeGrowthInside1X128
-
-    positionFees[poolDayData.date] = {
+    const currentTotalFeesSinceSnap = {
       amount0: await fees0Promise,
       amount1: await fees1Promise,
     }
+
+    positionFees[poolDayData.date] = {
+      amount0: currentTotalFeesSinceSnap.amount0.sub(prevTotalFeesSinceSnap.amount0),
+      amount1: currentTotalFeesSinceSnap.amount1.sub(prevTotalFeesSinceSnap.amount1),
+    }
+
+    // Workaround
+    if (positionFees[poolDayData.date].amount0.isNegative()) {
+      positionFees[poolDayData.date].amount0 = positionFees[poolDayData.date].amount0.add(remaining0)
+      remaining0 = BigNumber.from('0')
+    } else if (feeGrowthInside0X128.lt(feeGrowthInside0SnapX128) && remaining0.eq('0')) {
+      remaining0 = positionFees[poolDayData.date].amount0
+      positionFees[poolDayData.date].amount0 = BigNumber.from('0')
+    }
+
+    if (positionFees[poolDayData.date].amount1.isNegative()) {
+      positionFees[poolDayData.date].amount1 = positionFees[poolDayData.date].amount1.add(remaining1)
+      remaining1 = BigNumber.from('0')
+    } else if (feeGrowthInside0X128.lt(feeGrowthInside0SnapX128) && remaining1.eq('0')) {
+      remaining1 = positionFees[poolDayData.date].amount1
+      positionFees[poolDayData.date].amount1 = BigNumber.from('0')
+    }
+
+    prevTotalFeesSinceSnap = currentTotalFeesSinceSnap
   }
   return positionFees
 }
