@@ -69,7 +69,9 @@ export async function getPositions(owners: string[]): Promise<PositionInOverview
   const ethPrice = Number(result.data.bundle.ethPriceUSD)
 
   for (const positionData of result.data.positions) {
-    positions.push(new PositionInOverview(positionData, ethPrice))
+    const position = new PositionInOverview(positionData, ethPrice)
+    await position.setFees(positionData)
+    positions.push(position)
   }
 
   return positions

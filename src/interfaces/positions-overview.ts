@@ -2,9 +2,10 @@
 
 import { Token } from '@uniswap/sdk-core'
 import { Pool, Position } from '@uniswap/v3-sdk'
-import { getFeeGrowthInside, getTotalPositionFees, parseTick } from '../fees/total-owner-pool-fees'
+import { parseTick } from '../fees/total-owner-pool-fees'
 import { BigNumber } from 'ethers'
 import { formatUnits } from 'ethers/lib/utils'
+import { deployContractAndGetVm, getFeeGrowthInside, getPositionFees } from '../fees/contract-utils'
 
 export class PositionInOverview extends Position {
   readonly tokenId: number // token ID (e.g. 34054)
@@ -16,9 +17,9 @@ export class PositionInOverview extends Position {
   readonly liquidityUSD: number
 
   // Sum of all uncollected fees
-  readonly uncollectedFeesToken0: number
-  readonly uncollectedFeesToken1: number
-  readonly uncollectedFeesUSD: number
+  uncollectedFeesToken0: number | undefined
+  uncollectedFeesToken1: number | undefined
+  uncollectedFeesUSD: number | undefined
 
   constructor(positionData: any, ethPrice: number) {
     const poolData = positionData.pool
@@ -56,26 +57,40 @@ export class PositionInOverview extends Position {
     this.liquidityUSD =
       Number(this.amount0.toSignificant()) * this.token0priceUSD +
       Number(this.amount1.toSignificant()) * this.token1priceUSD
+  }
 
+  public async setFees(positionData: any) {
+    const poolData = positionData.pool
     const tickLower = parseTick(positionData.tickLower)
     const tickUpper = parseTick(positionData.tickUpper)
 
-    let [feeGrowthInside0X128, feeGrowthInside1X128] = getFeeGrowthInside(
+    const vm = await deployContractAndGetVm()
+
+    let [feeGrowthInside0X128, feeGrowthInside1X128] = await getFeeGrowthInside(
+      vm,
       tickLower,
       tickUpper,
       this.pool.tickCurrent,
       BigNumber.from(poolData.feeGrowthGlobal0X128),
       BigNumber.from(poolData.feeGrowthGlobal1X128)
     )
-    let fees = getTotalPositionFees(
+
+    const liquidity = BigNumber.from(positionData.liquidity)
+    const fees0Promise = getPositionFees(
+      vm,
       feeGrowthInside0X128,
-      feeGrowthInside1X128,
       BigNumber.from(positionData.feeGrowthInside0LastX128),
-      BigNumber.from(positionData.feeGrowthInside1LastX128),
-      BigNumber.from(positionData.liquidity)
+      liquidity
     )
-    this.uncollectedFeesToken0 = Number(formatUnits(fees.amount0, this.pool.token0.decimals))
-    this.uncollectedFeesToken1 = Number(formatUnits(fees.amount1, this.pool.token1.decimals))
+    const fees1Promise = getPositionFees(
+      vm,
+      feeGrowthInside1X128,
+      BigNumber.from(positionData.feeGrowthInside1LastX128),
+      liquidity
+    )
+
+    this.uncollectedFeesToken0 = Number(formatUnits(await fees0Promise, this.pool.token0.decimals))
+    this.uncollectedFeesToken1 = Number(formatUnits(await fees1Promise, this.pool.token1.decimals))
     this.uncollectedFeesUSD =
       this.uncollectedFeesToken0 * this.token0priceUSD + this.uncollectedFeesToken1 * this.token1priceUSD
   }

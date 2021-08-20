@@ -2,7 +2,8 @@ import { gql } from '@apollo/client/core'
 import { client } from '../apollo/client'
 import dayjs from 'dayjs'
 import { BigNumber } from 'ethers'
-import { getFeeGrowthInside, getTotalPositionFees, Tick, TokenFees } from './total-owner-pool-fees'
+import { Tick, TokenFees } from './total-owner-pool-fees'
+import { getFeeGrowthInside, getPositionFees, deployContractAndGetVm } from './contract-utils'
 
 const POSITION_AND_SNAPS = gql`
   query tickIds($positionId: String) {
@@ -80,7 +81,8 @@ function parseTickDayData(tickDayData: any): Tick {
   }
 }
 
-export function computeFees(data: any, position: any, positionSnaps: any): DailyFees {
+export async function computeFees(data: any, position: any, positionSnaps: any): Promise<DailyFees> {
+  const vm = await deployContractAndGetVm()
   const positionFees: DailyFees = {}
 
   // 1. Get tickDayDatas and merge first smaller with the rest
@@ -94,6 +96,13 @@ export function computeFees(data: any, position: any, positionSnaps: any): Daily
   let feeGrowthInside0LastX128 = BigNumber.from(positionSnaps[0].feeGrowthInside0LastX128)
   let feeGrowthInside1LastX128 = BigNumber.from(positionSnaps[0].feeGrowthInside1LastX128)
   let currentSnapIndex = 0
+
+  // Filtration vars
+  let sum0 = BigNumber.from(0)
+  let sum1 = BigNumber.from(0)
+  let numAdditions0 = 0
+  let numAdditions1 = 0
+
   for (const poolDayData of data.poolDayDatas) {
     // 3. Get the first tickDayData whose date is smaller or equal to current poolDayData
     const lowerTickDayDataRaw = lowerTickDayDatas.find(
@@ -104,8 +113,8 @@ export function computeFees(data: any, position: any, positionSnaps: any): Daily
       (tickDayData: { date: any }) => tickDayData.date <= poolDayData.date
     )
 
-    let lowerTickDayData = parseTickDayData(lowerTickDayDataRaw)
-    let upperTickDayData = parseTickDayData(upperTickDayDataRaw)
+    const lowerTickDayData = parseTickDayData(lowerTickDayDataRaw)
+    const upperTickDayData = parseTickDayData(upperTickDayDataRaw)
 
     // 4. increment snap index if necessary
     if (
@@ -115,31 +124,45 @@ export function computeFees(data: any, position: any, positionSnaps: any): Daily
       currentSnapIndex += 1
     }
 
-    let [feeGrowthInside0X128, feeGrowthInside1X128] = getFeeGrowthInside(
+    const [feeGrowthInside0X128, feeGrowthInside1X128] = await getFeeGrowthInside(
+      vm,
       lowerTickDayData,
       upperTickDayData,
       Number(poolDayData.tick),
       BigNumber.from(poolDayData.feeGrowthGlobal0X128),
       BigNumber.from(poolDayData.feeGrowthGlobal1X128)
     )
-    if (
-      feeGrowthInside0X128.sub(feeGrowthInside0LastX128).lt('0') ||
-      feeGrowthInside1X128.sub(feeGrowthInside1LastX128).lt('0')
-    ) {
-      positionFees[poolDayData.date] = {
-        amount0: BigNumber.from('0'),
-        amount1: BigNumber.from('0'),
-      }
+
+    const liquidity = BigNumber.from(positionSnaps[currentSnapIndex].liquidity)
+    const fees0Promise = getPositionFees(vm, feeGrowthInside0X128, feeGrowthInside0LastX128, liquidity)
+    const fees1Promise = getPositionFees(vm, feeGrowthInside1X128, feeGrowthInside1LastX128, liquidity)
+
+    feeGrowthInside0LastX128 = feeGrowthInside0X128
+    feeGrowthInside1LastX128 = feeGrowthInside1X128
+
+    let fees0 = await fees0Promise
+    let fees1 = await fees1Promise
+
+    // Filtration
+    if (numAdditions0 > 0 && fees0.gt(sum0.div(numAdditions0).mul('1000'))) {
+      // If current fees are more than thousand times bigger than the average set them to average
+      // --> purpose of this is to filter out erroneous values
+      fees0 = sum0.div(numAdditions0)
     } else {
-      positionFees[poolDayData.date] = getTotalPositionFees(
-        feeGrowthInside0X128,
-        feeGrowthInside1X128,
-        feeGrowthInside0LastX128,
-        feeGrowthInside1LastX128,
-        BigNumber.from(positionSnaps[currentSnapIndex].liquidity)
-      )
-      feeGrowthInside0LastX128 = feeGrowthInside0X128
-      feeGrowthInside1LastX128 = feeGrowthInside1X128
+      sum0 = sum0.add(fees0)
+      numAdditions0 = numAdditions0 + 1
+    }
+
+    if (numAdditions1 > 0 && fees1.gt(sum1.div(numAdditions1).mul('1000'))) {
+      fees1 = sum1.div(numAdditions1)
+    } else {
+      sum1 = sum1.add(fees1)
+      numAdditions1 = numAdditions1 + 1
+    }
+
+    positionFees[poolDayData.date] = {
+      amount0: fees0,
+      amount1: fees1,
     }
   }
   return positionFees
