@@ -216,10 +216,56 @@ async function getExpandedPosition(positionInOverview: PositionInOverview): Prom
     })
   }
 
+  // Get latest deposit or withdrawal - in order to have info from roi etc.
+  const collectedFeesToken0 = snapshots[snapshots.length - 1].collectedFeesToken0
+  const collectedFeesToken1 = snapshots[snapshots.length - 1].collectedFeesToken1
+
+  const interactions = getInteractions(snapshots)
+
+  let roiUSD, roiETH, roiHODL, apr
+  if (positionInOverview.liquidityUSD !== 0) {
+    // ROI related operations
+    // Last deposit or withdraw snap
+    const snapStart = interactions.reverse().find((interaction) => {
+      return interaction.type === InteractionType.DEPOSIT || interaction.type === InteractionType.WITHDRAW
+    })!.snap
+    const amount0Start = Number(snapStart.amountToken0.toSignificant()) + snapStart.collectedFeesToken0
+    const amount1Start = Number(snapStart.amountToken1.toSignificant()) + snapStart.collectedFeesToken1
+
+    const amount0End =
+      Number(positionInOverview.amount0.toSignificant()) +
+      collectedFeesToken0 +
+      positionInOverview.uncollectedFeesToken0!
+    const amount1End =
+      Number(positionInOverview.amount1.toSignificant()) +
+      collectedFeesToken1 +
+      positionInOverview.uncollectedFeesToken1!
+
+    const startUSD = amount0Start * snapStart.priceToken0 + amount1Start * snapStart.priceToken1
+    const endUSD = amount0End * positionInOverview.token0priceUSD + amount1End * positionInOverview.token1priceUSD
+
+    const startETH = startUSD / snapStart.transaction.ethPriceUSD
+    const endETH = endUSD / positionInOverview.ethPriceUSD
+
+    roiUSD = (endUSD - startUSD) / startUSD
+    roiETH = (endETH - startETH) / startETH
+
+    const endHODLUSD =
+      amount0Start * positionInOverview.token0priceUSD + amount1Start * positionInOverview.token1priceUSD
+    roiHODL = (endHODLUSD - startUSD) / startUSD
+
+    const timePeriodInYears = dayjs().diff(dayjs.unix(snapStart.transaction.timestamp), 'year', true)
+    apr = roiUSD / timePeriodInYears
+  }
+
   // 7. create ExpandedPositionInfo and return
   return {
-    collectedFeesToken0: snapshots[snapshots.length - 1].collectedFeesToken0,
-    collectedFeesToken1: snapshots[snapshots.length - 1].collectedFeesToken1,
+    collectedFeesToken0,
+    collectedFeesToken1,
+    roiUSD,
+    roiETH,
+    roiHODL,
+    apr,
     dailyFees: dailyFeesToChartFormat(
       await dailyFeesPromise,
       positionInOverview.pool.token0.decimals,

@@ -43,8 +43,10 @@ export class Interaction {
   readonly amountToken1: number
   readonly transaction: Transaction
   readonly valueUSD: number
+  readonly snap: Snapshot
 
   constructor(curSnap: Snapshot, prevSnap: Snapshot | undefined, afterWithdraw = false) {
+    this.snap = curSnap
     if (prevSnap === undefined) {
       this.type = InteractionType.DEPOSIT
       this.amountToken0 = curSnap.depositedToken0
@@ -87,6 +89,13 @@ export interface ExpandedPositionInfo {
   // Sum of all collected fees
   collectedFeesToken0: number
   collectedFeesToken1: number
+
+  // everything is since the last deposit or withdrawal
+  // undefined for closed positions
+  roiUSD: number | undefined
+  roiETH: number | undefined
+  roiHODL: number | undefined
+  apr: number | undefined
 
   dailyFees: FeesChartEntry[]
   snapshots: Snapshot[]
