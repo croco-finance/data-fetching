@@ -2,14 +2,14 @@ import { gql } from '@apollo/client/core'
 import { maxLiquidityForAmounts, TickMath } from '@uniswap/v3-sdk'
 import { client } from '../apollo/client'
 import { getPool, RawPoolData } from '../sdk-utils'
-import { parseTick } from './total-owner-pool-fees'
+import { parseTick, Tick } from './total-owner-pool-fees'
 import { BigNumber } from 'ethers'
 import { getBlockNumDaysAgo } from './utils'
 import { formatUnits } from 'ethers/lib/utils'
 import { getFeeGrowthInside, getPositionFees, deployContractAndGetVm } from './contract-utils'
 
 export const FEE_ESTIMATE_QUERY = gql`
-  query feeEstimationData($pool: String, $tickLower: Int, $tickUpper: Int, $block: Int) {
+  query feeEstimationData($pool: String, $tickLower: String, $tickUpper: String, $block: Int) {
     bundle(id: "1") {
       ethPriceUSD
     }
@@ -31,22 +31,12 @@ export const FEE_ESTIMATE_QUERY = gql`
       feeGrowthGlobal0X128
       feeGrowthGlobal1X128
     }
-    tickLower: ticks(
-      first: 1
-      where: { poolAddress: $pool, tickIdx_gte: $tickLower }
-      orderBy: tickIdx
-      orderDirection: asc
-    ) {
+    tickLower: tick(id: $tickLower) {
       tickIdx
       feeGrowthOutside0X128
       feeGrowthOutside1X128
     }
-    tickUpper: ticks(
-      first: 1
-      where: { poolAddress: $pool, tickIdx_lte: $tickUpper }
-      orderBy: tickIdx
-      orderDirection: desc
-    ) {
+    tickUpper: tick(id: $tickUpper) {
       tickIdx
       feeGrowthOutside0X128
       feeGrowthOutside1X128
@@ -69,24 +59,12 @@ export const FEE_ESTIMATE_QUERY = gql`
       feeGrowthGlobal0X128
       feeGrowthGlobal1X128
     }
-    tickLowerOld: ticks(
-      first: 1
-      where: { poolAddress: $pool, tickIdx_gte: $tickLower }
-      orderBy: tickIdx
-      orderDirection: asc
-      block: { number: $block }
-    ) {
+    tickLowerOld: tick(id: $tickLower, block: { number: $block }) {
       tickIdx
       feeGrowthOutside0X128
       feeGrowthOutside1X128
     }
-    tickUpperOld: ticks(
-      first: 1
-      where: { poolAddress: $pool, tickIdx_lte: $tickUpper }
-      orderBy: tickIdx
-      orderDirection: desc
-      block: { number: $block }
-    ) {
+    tickUpperOld: tick(id: $tickUpper, block: { number: $block }) {
       tickIdx
       feeGrowthOutside0X128
       feeGrowthOutside1X128
@@ -132,6 +110,18 @@ export function getLiquidity(
   return BigNumber.from(liquidityJSBI.toString())
 }
 
+function getTick(tickData: any, tickIdx: number): Tick {
+  if (tickData === null) {
+    return {
+      idx: tickIdx,
+      feeGrowthOutside0X128: BigNumber.from('0'),
+      feeGrowthOutside1X128: BigNumber.from('0'),
+    }
+  } else {
+    return parseTick(tickData)
+  }
+}
+
 export async function estimate24hUsdFees(
   pool: string,
   liquidityUsd: number,
@@ -148,16 +138,16 @@ export async function estimate24hUsdFees(
     query: FEE_ESTIMATE_QUERY,
     variables: {
       pool,
-      tickLower,
-      tickUpper,
+      tickLower: pool + '#' + tickLower,
+      tickUpper: pool + '#' + tickUpper,
       block: blockNumDaysAgo,
     },
   })
 
   // 3. parse and verify data
   const poolDataCurrent = result.data.pool
-  const tickLowerInstanceCurrent = parseTick(result.data.tickLower[0])
-  const tickUpperInstanceCurrent = parseTick(result.data.tickUpper[0])
+  const tickLowerInstanceCurrent = getTick(result.data.tickLower, tickLower)
+  const tickUpperInstanceCurrent = getTick(result.data.tickUpper, tickUpper)
 
   if (tickLowerInstanceCurrent.idx >= tickUpperInstanceCurrent.idx) {
     console.error('Lower tick Idx >= Upper tick Idx')
@@ -165,8 +155,8 @@ export async function estimate24hUsdFees(
   }
 
   const poolDataOld = result.data.poolOld
-  const tickLowerInstanceOld = parseTick(result.data.tickLowerOld[0])
-  const tickUpperInstanceOld = parseTick(result.data.tickUpperOld[0])
+  const tickLowerInstanceOld = getTick(result.data.tickLowerOld, tickLower)
+  const tickUpperInstanceOld = getTick(result.data.tickUpperOld, tickUpper)
 
   if (tickLowerInstanceOld.idx >= tickUpperInstanceOld.idx) {
     console.error('Old lower tick Idx >= Old upper tick Idx')
